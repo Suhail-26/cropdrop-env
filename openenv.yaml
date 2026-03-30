@@ -1,0 +1,20 @@
+name: cropdrop-logistics
+version: 1.0.0
+description: Time-sensitive agricultural crop delivery environment
+
+environment_class: CropdropEnvironment
+observation_model: CropdropObservation
+action_model: CropdropAction
+
+tasks:
+  - name: single_priority_delivery
+    difficulty: easy
+    description: Deliver one crop to correct zone before spoilage
+    
+  - name: multi_crop_prioritization
+    difficulty: medium
+    description: Deliver 3 crops, prioritize fast-spoiling crops
+    
+  - name: route_optimization
+    difficulty: hard
+    description: Optimize routes with dynamic congestions
