@@ -1,255 +1,158 @@
 ---
-title: Cropdrop Env Environment Server
-emoji: 📻
-colorFrom: gray
-colorTo: blue
+title: CropDrop Logistics
+emoji: 🌾
+colorFrom: green
+colorTo: yellow
 sdk: docker
-pinned: false
 app_port: 7860
-base_path: /web
-tags:
-  - openenv
 ---
 
-# Cropdrop Env Environment
+# 🌾 CropDrop Logistics
 
-A simple test environment that echoes back messages. Perfect for testing the env APIs as well as demonstrating environment usage patterns.
+**Agricultural last‑mile delivery environment for AI agents**
 
-## Quick Start
+[![Open In Spaces](https://img.shields.io/badge/🤗-Open%20In%20Spaces-blue)](https://huggingface.co/spaces/suhailma/cropdrop-env)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The simplest way to use the Cropdrop Env environment is through the `CropdropEnv` class:
+---
 
-```python
-from cropdrop_env import CropdropAction, CropdropEnv
+## 📖 Overview
 
-try:
-    # Create environment from Docker image
-    cropdrop_envenv = CropdropEnv.from_docker_image("cropdrop_env-env:latest")
+CropDrop Logistics is a realistic simulation where an AI agent manages time‑sensitive crop deliveries from farms to distribution centers. Crops spoil over time, routes have different speeds and congestion, and each delivery must go to the correct zone. The environment is built with [OpenEnv](https://github.com/openenv/openenv) and exposes a FastAPI server for easy integration.
 
-    # Reset
-    result = cropdrop_envenv.reset()
-    print(f"Reset: {result.observation.echoed_message}")
+### 🌍 Real‑world problem
 
-    # Send multiple messages
-    messages = ["Hello, World!", "Testing echo", "Final message"]
+Food spoilage during transportation causes **30–40% of global food loss**. This environment trains AI agents to:
+- Prioritize deliveries based on spoilage urgency
+- Choose optimal routes under dynamic congestion
+- Balance speed vs. accuracy to maximize freshness
 
-    for msg in messages:
-        result = cropdrop_envenv.step(CropdropAction(message=msg))
-        print(f"Sent: '{msg}'")
-        print(f"  → Echoed: '{result.observation.echoed_message}'")
-        print(f"  → Length: {result.observation.message_length}")
-        print(f"  → Reward: {result.reward}")
+---
 
-finally:
-    # Always clean up
-    cropdrop_envenv.close()
-```
+## 🎮 Environment Details
 
-That's it! The `CropdropEnv.from_docker_image()` method handles:
-- Starting the Docker container
-- Waiting for the server to be ready
-- Connecting to the environment
-- Container cleanup when you call `close()`
+### Action space (`CropdropAction`)
 
-## Building the Docker Image
+| Field | Type | Description |
+|-------|------|-------------|
+| `crop_id` | `int` | Which crop to deliver (1, 2, or 3) |
+| `route` | `"paved"`, `"dirt"`, `"muddy"` | Road type (fast, medium, slow) |
+| `destination_zone` | `"zone_1"`, `"zone_2"` | Delivery zone |
 
-Before using the environment, you need to build the Docker image:
+### Observation space (`CropdropObservation`)
 
-```bash
-# From project root
-docker build -t cropdrop_env-env:latest -f server/Dockerfile .
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `current_time` | `int` | Steps elapsed in the episode |
+| `crops` | `List[Dict]` | Each crop: id, type, spoilage remaining, intended zone |
+| `routes_status` | `Dict` | Congestion and estimated time for each route |
+| `pending_orders` | `List` | Orders waiting to be delivered |
+| `reward` | `float` | Immediate reward from the last step |
+| `done` | `bool` | Whether the episode is finished |
 
-## Deploying to Hugging Face Spaces
+### Reward function
 
-You can easily deploy your OpenEnv environment to Hugging Face Spaces using the `openenv push` command:
+| Outcome | Reward |
+|---------|--------|
+| Correct zone, fresh crop | `0.7 + freshness_bonus` (0–0.3) |
+| Correct zone, spoiled | `0.5` |
+| Wrong zone | `0.2` |
+| Spoiled during delivery | `0.0` |
 
-```bash
-# From the environment directory (where openenv.yaml is located)
-openenv push
+---
 
-# Or specify options
-openenv push --namespace my-org --private
-```
+## 🎯 Tasks (3 difficulty levels)
 
-The `openenv push` command will:
-1. Validate that the directory is an OpenEnv environment (checks for `openenv.yaml`)
-2. Prepare a custom build for Hugging Face Docker space (enables web interface)
-3. Upload to Hugging Face (ensuring you're logged in)
+| Task | Difficulty | Description | Grader criteria |
+|------|------------|-------------|----------------|
+| **Single Priority Delivery** | Easy | Deliver 1 specific crop to correct zone before spoilage | 1.0 = correct & fresh, 0.5 = correct but spoiled, 0.0 = wrong/spoiled |
+| **Multi‑Crop Prioritization** | Medium | Deliver 3 crops, prioritise fast‑spoiling crops | Base score + bonus for delivering tomato first |
+| **Route Optimization** | Hard | Optimise routes with dynamic congestion | 50% correct deliveries + 30% time efficiency + 20% route choice |
 
-### Prerequisites
+---
 
-- Authenticate with Hugging Face: The command will prompt for login if not already authenticated
+## 🚀 Quick Start
 
-### Options
-
-- `--directory`, `-d`: Directory containing the OpenEnv environment (defaults to current directory)
-- `--repo-id`, `-r`: Repository ID in format 'username/repo-name' (defaults to 'username/env-name' from openenv.yaml)
-- `--base-image`, `-b`: Base Docker image to use (overrides Dockerfile FROM)
-- `--private`: Deploy the space as private (default: public)
-
-### Examples
+### Local development
 
 ```bash
-# Push to your personal namespace (defaults to username/env-name from openenv.yaml)
-openenv push
+# Clone the repository
+git clone https://github.com/Suhail-26/cropdrop-env.git
+cd cropdrop-env
 
-# Push to a specific repository
-openenv push --repo-id my-org/my-env
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Push with a custom base image
-openenv push --base-image ghcr.io/meta-pytorch/openenv-base:latest
+# Install dependencies
+pip install -r requirements.txt
 
-# Push as a private space
-openenv push --private
+# Validate the environment
+openenv validate
 
-# Combine options
-openenv push --repo-id my-org/my-env --base-image custom-base:latest --private
-```
+# Run baseline inference
+python inference.py
 
-After deployment, your space will be available at:
-`https://huggingface.co/spaces/<repo-id>`
+# Start the API server
+python -m uvicorn server.app:app --host 0.0.0.0 --port 8000
+Docker
+bash
+docker build -t cropdrop-env .
+docker run -p 7860:7860 cropdrop-env
+Hugging Face Space
+The environment is live at:
+https://huggingface.co/spaces/suhailma/cropdrop-env
 
-The deployed space includes:
-- **Web Interface** at `/web` - Interactive UI for exploring the environment
-- **API Documentation** at `/docs` - Full OpenAPI/Swagger interface
-- **Health Check** at `/health` - Container health monitoring
-- **WebSocket** at `/ws` - Persistent session endpoint for low-latency interactions
+📡 API Endpoints
+Endpoint	Method	Description
+/reset	POST	Start a new episode (empty body)
+/step	POST	Execute an action (send CropdropAction JSON)
+/state	GET	Get current episode metadata
+/tasks	GET	List all tasks with schemas
+/grader/{task_name}	POST	Get grader score for a completed episode
+/health	GET	Health check for Hugging Face
+/docs	GET	Interactive Swagger documentation
+📊 Baseline Scores
+Task	Score
+Easy	0.02
+Medium	0.01
+Hard	0.88
+These scores come from a random baseline agent. A trained agent would achieve higher values.
 
-## Environment Details
+📁 Project Structure
+text
+cropdrop-env/
+├── server/
+│   ├── __init__.py
+│   ├── app.py                     # FastAPI server
+│   ├── cropdrop_env_environment.py # Core environment logic
+│   └── Dockerfile                 # Container definition
+├── models.py                      # Action and Observation models
+├── openenv.yaml                   # Environment manifest
+├── client.py                      # OpenEnv client
+├── graders.py                     # Easy, Medium, Hard graders
+├── inference.py                   # Baseline inference script
+├── test_1000_episodes.py          # Performance test
+├── requirements.txt               # Python dependencies
+├── pyproject.toml                 # Project configuration
+├── uv.lock                        # Locked dependencies
+└── README.md                      # This file
+🧪 Testing
+bash
+# Run 1000 random episodes to collect statistics
+python test_1000_episodes.py
 
-### Action
-**CropdropAction**: Contains a single field
-- `message` (str) - The message to echo back
+# Visualise an episode in the terminal
+python visualize.py
 
-### Observation
-**CropdropObservation**: Contains the echo response and metadata
-- `echoed_message` (str) - The message echoed back
-- `message_length` (int) - Length of the message
-- `reward` (float) - Reward based on message length (length × 0.1)
-- `done` (bool) - Always False for echo environment
-- `metadata` (dict) - Additional info like step count
+🤝 Acknowledgments
+Built with OpenEnv
+Designed for the OpenEnv Hackathon
 
-### Reward
-The reward is calculated as: `message_length × 0.1`
-- "Hi" → reward: 0.2
-- "Hello, World!" → reward: 1.3
-- Empty message → reward: 0.0
+📄 License
+MIT License – free to use and modify.
 
-## Advanced Usage
+🔗 Links
+GitHub repository: https://github.com/Suhail-26/cropdrop-env
 
-### Connecting to an Existing Server
-
-If you already have a Cropdrop Env environment server running, you can connect directly:
-
-```python
-from cropdrop_env import CropdropEnv
-
-# Connect to existing server
-cropdrop_envenv = CropdropEnv(base_url="<ENV_HTTP_URL_HERE>")
-
-# Use as normal
-result = cropdrop_envenv.reset()
-result = cropdrop_envenv.step(CropdropAction(message="Hello!"))
-```
-
-Note: When connecting to an existing server, `cropdrop_envenv.close()` will NOT stop the server.
-
-### Using the Context Manager
-
-The client supports context manager usage for automatic connection management:
-
-```python
-from cropdrop_env import CropdropAction, CropdropEnv
-
-# Connect with context manager (auto-connects and closes)
-with CropdropEnv(base_url="http://localhost:8000") as env:
-    result = env.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-    # Multiple steps with low latency
-    for msg in ["Hello", "World", "!"]:
-        result = env.step(CropdropAction(message=msg))
-        print(f"Echoed: {result.observation.echoed_message}")
-```
-
-The client uses WebSocket connections for:
-- **Lower latency**: No HTTP connection overhead per request
-- **Persistent session**: Server maintains your environment state
-- **Efficient for episodes**: Better for many sequential steps
-
-### Concurrent WebSocket Sessions
-
-The server supports multiple concurrent WebSocket connections. To enable this,
-modify `server/app.py` to use factory mode:
-
-```python
-# In server/app.py - use factory mode for concurrent sessions
-app = create_app(
-    CropdropEnvironment,  # Pass class, not instance
-    CropdropAction,
-    CropdropObservation,
-    max_concurrent_envs=4,  # Allow 4 concurrent sessions
-)
-```
-
-Then multiple clients can connect simultaneously:
-
-```python
-from cropdrop_env import CropdropAction, CropdropEnv
-from concurrent.futures import ThreadPoolExecutor
-
-def run_episode(client_id: int):
-    with CropdropEnv(base_url="http://localhost:8000") as env:
-        result = env.reset()
-        for i in range(10):
-            result = env.step(CropdropAction(message=f"Client {client_id}, step {i}"))
-        return client_id, result.observation.message_length
-
-# Run 4 episodes concurrently
-with ThreadPoolExecutor(max_workers=4) as executor:
-    results = list(executor.map(run_episode, range(4)))
-```
-
-## Development & Testing
-
-### Direct Environment Testing
-
-Test the environment logic directly without starting the HTTP server:
-
-```bash
-# From the server directory
-python3 server/cropdrop_env_environment.py
-```
-
-This verifies that:
-- Environment resets correctly
-- Step executes actions properly
-- State tracking works
-- Rewards are calculated correctly
-
-### Running Locally
-
-Run the server locally for development:
-
-```bash
-uvicorn server.app:app --reload
-```
-
-## Project Structure
-
-```
-cropdrop_env/
-├── .dockerignore         # Docker build exclusions
-├── __init__.py            # Module exports
-├── README.md              # This file
-├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml         # Project metadata and dependencies
-├── uv.lock                # Locked dependencies (generated)
-├── client.py              # CropdropEnv client
-├── models.py              # Action and Observation models
-└── server/
-    ├── __init__.py        # Server module exports
-    ├── cropdrop_env_environment.py  # Core environment logic
-    ├── app.py             # FastAPI application (HTTP + WebSocket endpoints)
-    └── Dockerfile         # Container image definition
-```
+Hugging Face Space: https://huggingface.co/spaces/suhailma/cropdrop-env
