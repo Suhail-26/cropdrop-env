@@ -1,5 +1,6 @@
 """
 Baseline inference script for CropDrop Environment
+
 Uses LLM via OpenAI Client to decide actions.
 Calls the deployed HF Space via HTTP.
 Emits structured [START], [STEP], [END] logs for evaluation.
@@ -12,15 +13,15 @@ import requests
 from openai import OpenAI
 
 # ─── Configuration from environment variables ───
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.groq.com/openai/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
+API_BASE_URL = os.environ.get("API_BASE_URL")          # Injected by hackathon proxy
+API_KEY = os.environ.get("API_KEY")                    # Injected by hackathon proxy
+MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o-mini")  # Use a model supported by their proxy
 ENV_URL = os.environ.get("ENV_URL", "https://suhailma-cropdrop-env.hf.space")
 
-# ─── OpenAI-compatible client ───
+# ─── OpenAI-compatible client (routes through LiteLLM proxy) ───
 client = OpenAI(
     base_url=API_BASE_URL,
-    api_key=HF_TOKEN,
+    api_key=API_KEY,
 )
 
 # ─── Task definitions ───
@@ -50,8 +51,6 @@ def call_env(endpoint, method="POST", payload=None):
     """Call the HF Space environment API."""
     url = f"{ENV_URL}/{endpoint}"
     headers = {"Content-Type": "application/json"}
-    if HF_TOKEN:
-        headers["Authorization"] = f"Bearer {HF_TOKEN}"
 
     try:
         if method == "POST":
@@ -83,22 +82,29 @@ def ask_llm(observation, task_info):
         )
 
     prompt = f"""You are an AI agent managing agricultural crop deliveries.
+
 Task: {task_info['description']}
 Difficulty: {task_info['difficulty']}
+
 Current State:
 - Time elapsed: {observation.get('current_time', 0)}
 - Last action result: {observation.get('last_action_result', 'None')}
+
 Available Crops to deliver:
 {crops_info if crops_info else '  (none remaining)'}
+
 Route Options:
 {routes_info if routes_info else '  (unknown)'}
+
 Choose the best action. You must respond with ONLY a JSON object:
 {{"crop_id": <int>, "route": "<paved|dirt|muddy>", "destination_zone": "<zone_1|zone_2>"}}
+
 Strategy tips:
 - Match each crop to its intended_zone for maximum reward
 - Use "paved" route for fast-spoiling crops (lowest travel time)
 - Prioritize crops with lowest spoilage_remaining first
 - Avoid "muddy" routes unless necessary (high time cost)
+
 Respond with ONLY the JSON object, no other text."""
 
     try:
@@ -109,14 +115,17 @@ Respond with ONLY the JSON object, no other text."""
             temperature=0.2,
         )
         content = response.choices[0].message.content.strip()
+
         # Parse JSON from response - handle markdown code blocks
         if "```" in content:
             content = content.split("```")[1]
             if content.startswith("json"):
                 content = content[4:]
             content = content.strip()
+
         action = json.loads(content)
         return action
+
     except Exception as e:
         print(f"[ERROR] LLM call failed: {e}", file=sys.stderr)
         # Fallback: pick fastest-spoiling crop, paved route, correct zone
@@ -180,7 +189,7 @@ def run_task(task_info):
             print(f"[STEP] {json.dumps(step_log)}")
             break
 
-        # Parse response - OpenEnv returns observation, reward, done, info
+        # Parse response
         if isinstance(result, dict):
             reward = result.get("reward", 0.0)
             done = result.get("done", False)
@@ -224,7 +233,6 @@ def run_task(task_info):
         "steps": steps,
     }
     print(f"[END] {json.dumps(end_log)}")
-
     return score
 
 
@@ -234,11 +242,10 @@ def main():
     print("CropDrop Environment - Baseline Inference")
     print(f"Environment: {ENV_URL}")
     print(f"Model: {MODEL_NAME}")
-    print(f"API: {API_BASE_URL}")
+    print(f"API Base: {API_BASE_URL}")
     print("=" * 60)
 
     all_scores = {}
-
     for task in TASKS:
         print(f"\n--- Running Task: {task['name']} ({task['difficulty']}) ---")
         score = run_task(task)
