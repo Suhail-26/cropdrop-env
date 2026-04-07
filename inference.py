@@ -54,6 +54,7 @@ Choose an action. Reply ONLY with a JSON object in this exact format:
 {{"crop_id": <id>, "route": "paved" or "dirt" or "muddy", "destination_zone": "zone_1" or "zone_2"}}
 """
     try:
+        # THIS IS THE KEY: Make the API call through the proxy
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
@@ -106,23 +107,35 @@ def run_agent(env, max_steps=20):
     return total_reward / max(steps, 1)
 
 # ------------------------------------------------------------------
-# Run all three tasks
+# Run all three tasks - ENSURE THIS IS EXECUTED
 # ------------------------------------------------------------------
 def run_all_tasks():
+    """Run all three difficulty levels and return scores."""
     results = {}
     
-    # Easy task: single crop
-    env = CropdropEnvironment()
-    env.crops = [env.crops[0]]   # keep only the first crop
-    results["easy"] = run_agent(env)
-    
-    # Medium task: default 3 crops, no extra congestion (already default)
-    env = CropdropEnvironment()
-    results["medium"] = run_agent(env)
-    
-    # Hard task: same as medium (congestion already dynamic)
-    env = CropdropEnvironment()
-    results["hard"] = run_agent(env)
+    try:
+        # Easy task: single crop
+        print("Running EASY task...")
+        env = CropdropEnvironment()
+        env.crops = [env.crops[0]]   # keep only the first crop
+        results["easy"] = run_agent(env)
+        print(f"✓ Easy task completed: {results['easy']:.2f}")
+        
+        # Medium task: default 3 crops, no extra congestion (already default)
+        print("Running MEDIUM task...")
+        env = CropdropEnvironment()
+        results["medium"] = run_agent(env)
+        print(f"✓ Medium task completed: {results['medium']:.2f}")
+        
+        # Hard task: same as medium (congestion already dynamic)
+        print("Running HARD task...")
+        env = CropdropEnvironment()
+        results["hard"] = run_agent(env)
+        print(f"✓ Hard task completed: {results['hard']:.2f}")
+        
+    except Exception as e:
+        print(f"Error running tasks: {e}")
+        raise
     
     return results
 
@@ -131,7 +144,10 @@ if __name__ == "__main__":
     print("=" * 50)
     print("🌾 CropDrop Baseline Inference (using LiteLLM proxy)")
     print("=" * 50)
+    
+    # ENSURE THIS RUNS - This is what makes the API calls
     scores = run_all_tasks()
+    
     print("\n📊 Baseline Scores:")
     for task, score in scores.items():
         print(f"  {task.upper()}: {score:.2f}")
