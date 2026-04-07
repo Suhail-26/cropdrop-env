@@ -5,7 +5,7 @@ Uses the hackathon's LiteLLM proxy for LLM calls.
 
 import os
 import json
-import random
+import sys
 from openai import OpenAI
 from server.cropdrop_env_environment import CropdropEnvironment
 from models import CropdropAction
@@ -76,7 +76,7 @@ Choose an action. Reply ONLY with a JSON object in this exact format:
         )
     except Exception as e:
         # Fallback to a safe default action if parsing fails
-        print(f"LLM parsing error: {e}, using fallback action")
+        print(f"LLM parsing error: {e}, using fallback action", file=sys.stderr)
         return CropdropAction(
             crop_id=crops[0]["id"],
             route="paved",
@@ -115,40 +115,46 @@ def run_all_tasks():
     
     try:
         # Easy task: single crop
-        print("Running EASY task...")
         env = CropdropEnvironment()
         env.crops = [env.crops[0]]   # keep only the first crop
         results["easy"] = run_agent(env)
-        print(f"✓ Easy task completed: {results['easy']:.2f}")
         
         # Medium task: default 3 crops, no extra congestion (already default)
-        print("Running MEDIUM task...")
         env = CropdropEnvironment()
         results["medium"] = run_agent(env)
-        print(f"✓ Medium task completed: {results['medium']:.2f}")
         
         # Hard task: same as medium (congestion already dynamic)
-        print("Running HARD task...")
         env = CropdropEnvironment()
         results["hard"] = run_agent(env)
-        print(f"✓ Hard task completed: {results['hard']:.2f}")
         
     except Exception as e:
-        print(f"Error running tasks: {e}")
+        print(f"Error running tasks: {e}", file=sys.stderr)
         raise
     
     return results
 
 # ------------------------------------------------------------------
 if __name__ == "__main__":
-    print("=" * 50)
-    print("🌾 CropDrop Baseline Inference (using LiteLLM proxy)")
-    print("=" * 50)
+    # Print START marker for validator
+    print("[START] task=cropdrop_inference")
+    sys.stdout.flush()
     
-    # ENSURE THIS RUNS - This is what makes the API calls
-    scores = run_all_tasks()
-    
-    print("\n📊 Baseline Scores:")
-    for task, score in scores.items():
-        print(f"  {task.upper()}: {score:.2f}")
-    print("=" * 50)
+    try:
+        # Run all tasks - This makes the API calls through the proxy
+        scores = run_all_tasks()
+        
+        # Print each step with reward
+        step_count = 1
+        for task, score in scores.items():
+            print(f"[STEP] step={step_count} reward={score:.2f}", flush=True)
+            step_count += 1
+        
+        # Calculate final score (average of all tasks)
+        final_score = sum(scores.values()) / len(scores) if scores else 0.0
+        
+        # Print END marker with final score
+        print(f"[END] task=cropdrop_inference score={final_score:.2f}", flush=True)
+        
+    except Exception as e:
+        print(f"[END] task=cropdrop_inference error={str(e)}", flush=True)
+        sys.exit(1)
