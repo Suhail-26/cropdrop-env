@@ -10,11 +10,12 @@ tasks:
   - name: single_priority_delivery
     difficulty: easy
     description: Deliver one crop to correct zone before spoilage
-    
+    grader: EasyGrader
   - name: multi_crop_prioritization
     difficulty: medium
     description: Deliver 3 crops, prioritize fast-spoiling crops
-    
+    grader: MediumGrader
   - name: route_optimization
     difficulty: hard
-    description: Optimize routes with dynamic congestions
+    description: Optimize routes with dynamic congestion
+    grader: HardGrader
