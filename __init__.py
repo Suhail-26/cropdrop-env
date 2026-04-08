@@ -9,8 +9,13 @@
 from .client import CropdropEnv
 from .models import CropdropAction, CropdropObservation
 
+from .graders import EasyGrader, MediumGrader, HardGrader
+
 __all__ = [
     "CropdropAction",
     "CropdropObservation",
     "CropdropEnv",
+    "EasyGrader",      # ← ADDED
+    "MediumGrader",    # ← ADDED
+    "HardGrader",      # ← ADDED
 ]
