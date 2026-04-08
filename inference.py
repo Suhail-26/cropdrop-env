@@ -1,160 +1,259 @@
 """
-Baseline inference script for CropDrop environment
-Uses the hackathon's LiteLLM proxy for LLM calls.
+Baseline inference script for CropDrop Environment
+Uses LLM via OpenAI Client to decide actions.
+Calls the deployed HF Space via HTTP.
+Emits structured [START], [STEP], [END] logs for evaluation.
 """
 
 import os
-import json
 import sys
+import json
+import requests
 from openai import OpenAI
-from server.cropdrop_env_environment import CropdropEnvironment
-from models import CropdropAction
 
-# ------------------------------------------------------------------
-# CRITICAL: Use the environment variables injected by the evaluator
-# Do NOT set defaults for API_KEY (must come from the proxy)
-# ------------------------------------------------------------------
-API_BASE_URL = os.environ.get("API_BASE_URL")
-API_KEY = os.environ.get("API_KEY")          # or HF_TOKEN
-MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-3.5-turbo")
+# ─── Configuration from environment variables ───
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://api.groq.com/openai/v1")
+MODEL_NAME = os.environ.get("MODEL_NAME", "llama-3.1-8b-instant")
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
+ENV_URL = os.environ.get("ENV_URL", "https://suhailma-cropdrop-env.hf.space")
 
-# Validate that the proxy credentials are present
-if not API_BASE_URL or not API_KEY:
-    raise ValueError(
-        "API_BASE_URL and API_KEY must be set by the evaluator. "
-        "Do not hardcode API keys or use other providers."
-    )
-
-# Initialize the OpenAI client with the proxy
+# ─── OpenAI-compatible client ───
 client = OpenAI(
     base_url=API_BASE_URL,
-    api_key=API_KEY,
+    api_key=HF_TOKEN,
 )
 
-# ------------------------------------------------------------------
-# Helper: ask the LLM to choose an action
-# ------------------------------------------------------------------
-def get_llm_action(observation, crops, routes_status):
-    """Send the current state to the LLM and parse its action choice."""
-    
-    # Build a prompt that describes the environment and available options
-    prompt = f"""
-You are controlling a crop delivery robot in a logistics environment.
+# ─── Task definitions ───
+TASKS = [
+    {
+        "name": "single_priority_delivery",
+        "difficulty": "easy",
+        "description": "Deliver a single crop to the correct zone before it spoils.",
+        "max_steps": 5,
+    },
+    {
+        "name": "multi_crop_prioritization",
+        "difficulty": "medium",
+        "description": "Deliver all 3 crops to their correct zones, prioritizing fast-spoiling ones.",
+        "max_steps": 10,
+    },
+    {
+        "name": "route_optimization",
+        "difficulty": "hard",
+        "description": "Deliver all crops using optimal routes, minimizing time and avoiding muddy paths.",
+        "max_steps": 15,
+    },
+]
 
-Current time: {observation.current_time}
 
-Available crops (each has id, type, spoilage remaining, intended zone):
-{json.dumps(crops, indent=2)}
+def call_env(endpoint, method="POST", payload=None):
+    """Call the HF Space environment API."""
+    url = f"{ENV_URL}/{endpoint}"
+    headers = {"Content-Type": "application/json"}
+    if HF_TOKEN:
+        headers["Authorization"] = f"Bearer {HF_TOKEN}"
 
-Route status (congestion and estimated travel time):
-{json.dumps(routes_status, indent=2)}
-
-Your goal is to deliver crops to their correct zones before they spoil.
-Choose an action. Reply ONLY with a JSON object in this exact format:
-{{"crop_id": <id>, "route": "paved" or "dirt" or "muddy", "destination_zone": "zone_1" or "zone_2"}}
-"""
     try:
-        # THIS IS THE KEY: Make the API call through the proxy
+        if method == "POST":
+            resp = requests.post(url, json=payload or {}, headers=headers, timeout=30)
+        else:
+            resp = requests.get(url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        print(f"[ERROR] API call to {endpoint} failed: {e}", file=sys.stderr)
+        return None
+
+
+def ask_llm(observation, task_info):
+    """Ask the LLM to choose the next action given the observation."""
+    crops_info = ""
+    for crop in observation.get("crops", []):
+        crops_info += (
+            f"  - Crop ID {crop['id']}: {crop['type']}, "
+            f"spoilage_remaining={crop['spoilage_remaining']}, "
+            f"intended_zone={crop['intended_zone']}\n"
+        )
+
+    routes_info = ""
+    for route_name, info in observation.get("routes_status", {}).items():
+        routes_info += (
+            f"  - {route_name}: estimated_time={info.get('estimated_time', '?')}, "
+            f"congestion={info.get('congestion', '?')}\n"
+        )
+
+    prompt = f"""You are an AI agent managing agricultural crop deliveries.
+Task: {task_info['description']}
+Difficulty: {task_info['difficulty']}
+Current State:
+- Time elapsed: {observation.get('current_time', 0)}
+- Last action result: {observation.get('last_action_result', 'None')}
+Available Crops to deliver:
+{crops_info if crops_info else '  (none remaining)'}
+Route Options:
+{routes_info if routes_info else '  (unknown)'}
+Choose the best action. You must respond with ONLY a JSON object:
+{{"crop_id": <int>, "route": "<paved|dirt|muddy>", "destination_zone": "<zone_1|zone_2>"}}
+Strategy tips:
+- Match each crop to its intended_zone for maximum reward
+- Use "paved" route for fast-spoiling crops (lowest travel time)
+- Prioritize crops with lowest spoilage_remaining first
+- Avoid "muddy" routes unless necessary (high time cost)
+Respond with ONLY the JSON object, no other text."""
+
+    try:
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
             max_tokens=100,
+            temperature=0.2,
         )
-        # Parse the LLM's response
-        action_text = response.choices[0].message.content.strip()
-        # Extract JSON from the response (may be surrounded by backticks)
-        if "```json" in action_text:
-            action_text = action_text.split("```json")[1].split("```")[0]
-        elif "```" in action_text:
-            action_text = action_text.split("```")[1].split("```")[0]
-        action_data = json.loads(action_text)
-        return CropdropAction(
-            crop_id=int(action_data["crop_id"]),
-            route=action_data["route"],
-            destination_zone=action_data["destination_zone"]
-        )
+        content = response.choices[0].message.content.strip()
+        # Parse JSON from response - handle markdown code blocks
+        if "```" in content:
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+            content = content.strip()
+        action = json.loads(content)
+        return action
     except Exception as e:
-        # Fallback to a safe default action if parsing fails
-        print(f"LLM parsing error: {e}, using fallback action", file=sys.stderr)
-        return CropdropAction(
-            crop_id=crops[0]["id"],
-            route="paved",
-            destination_zone=crops[0]["intended_zone"]
-        )
+        print(f"[ERROR] LLM call failed: {e}", file=sys.stderr)
+        # Fallback: pick fastest-spoiling crop, paved route, correct zone
+        crops = observation.get("crops", [])
+        if crops:
+            crop = min(crops, key=lambda c: c.get("spoilage_remaining", 999))
+            return {
+                "crop_id": crop["id"],
+                "route": "paved",
+                "destination_zone": crop.get("intended_zone", "zone_1"),
+            }
+        return {"crop_id": 1, "route": "paved", "destination_zone": "zone_1"}
 
-# ------------------------------------------------------------------
-# Run one episode with the LLM agent
-# ------------------------------------------------------------------
-def run_agent(env, max_steps=20):
-    """Run a single episode using the LLM to choose actions."""
-    obs = env.reset()
+
+def run_task(task_info):
+    """Run a single task episode and return the score."""
+    task_name = task_info["name"]
+    max_steps = task_info["max_steps"]
+
+    # ─── [START] log ───
+    start_log = {
+        "task": task_name,
+        "difficulty": task_info["difficulty"],
+        "max_steps": max_steps,
+        "env_url": ENV_URL,
+        "model": MODEL_NAME,
+    }
+    print(f"[START] {json.dumps(start_log)}")
+
+    # Reset the environment
+    obs = call_env("reset", method="POST")
+    if obs is None:
+        print(f"[END] {json.dumps({'task': task_name, 'score': 0.0, 'total_reward': 0.0, 'steps': 0, 'error': 'reset failed'})}")
+        return 0.0
+
     total_reward = 0.0
     steps = 0
-    
-    for _ in range(max_steps):
-        if not env.crops:
+
+    for step_num in range(1, max_steps + 1):
+        crops = obs.get("crops", [])
+        if not crops:
             break
-        # Get action from LLM (makes an API call to the proxy)
-        action = get_llm_action(obs, env.crops, env.routes)
-        obs, reward, done, info = env.step(action)
+
+        # For easy task, only use first crop
+        if task_info["difficulty"] == "easy" and len(crops) > 1:
+            obs["crops"] = [crops[0]]
+
+        # Ask LLM for action
+        action = ask_llm(obs, task_info)
+
+        # Execute action via API
+        result = call_env("step", method="POST", payload=action)
+        if result is None:
+            step_log = {
+                "step": step_num,
+                "action": action,
+                "reward": 0.0,
+                "done": False,
+                "error": "step call failed",
+            }
+            print(f"[STEP] {json.dumps(step_log)}")
+            break
+
+        # Parse response - OpenEnv returns observation, reward, done, info
+        if isinstance(result, dict):
+            reward = result.get("reward", 0.0)
+            done = result.get("done", False)
+            obs = result.get("observation", result)
+            info = result.get("info", {})
+        else:
+            reward = 0.0
+            done = False
+            obs = {}
+            info = {}
+
         total_reward += reward
-        steps += 1
+        steps = step_num
+
+        # ─── [STEP] log ───
+        step_log = {
+            "step": step_num,
+            "action": action,
+            "reward": round(reward, 4),
+            "total_reward": round(total_reward, 4),
+            "done": done,
+            "last_action_result": obs.get("last_action_result", None),
+        }
+        print(f"[STEP] {json.dumps(step_log)}")
+
         if done:
             break
-    
-    # Return average reward per step
-    return total_reward / max(steps, 1)
 
-# ------------------------------------------------------------------
-# Run all three tasks - ENSURE THIS IS EXECUTED
-# ------------------------------------------------------------------
-def run_all_tasks():
-    """Run all three difficulty levels and return scores."""
-    results = {}
-    
-    try:
-        # Easy task: single crop
-        env = CropdropEnvironment()
-        env.crops = [env.crops[0]]   # keep only the first crop
-        results["easy"] = run_agent(env)
-        
-        # Medium task: default 3 crops, no extra congestion (already default)
-        env = CropdropEnvironment()
-        results["medium"] = run_agent(env)
-        
-        # Hard task: same as medium (congestion already dynamic)
-        env = CropdropEnvironment()
-        results["hard"] = run_agent(env)
-        
-    except Exception as e:
-        print(f"Error running tasks: {e}", file=sys.stderr)
-        raise
-    
-    return results
+    # Get grader score
+    grader_result = call_env(f"grader/{task_name}", method="POST")
+    score = 0.0
+    if grader_result and isinstance(grader_result, dict):
+        score = grader_result.get("score", 0.0)
 
-# ------------------------------------------------------------------
+    # ─── [END] log ───
+    end_log = {
+        "task": task_name,
+        "difficulty": task_info["difficulty"],
+        "score": round(score, 4),
+        "total_reward": round(total_reward, 4),
+        "steps": steps,
+    }
+    print(f"[END] {json.dumps(end_log)}")
+
+    return score
+
+
+def main():
+    """Run baseline inference on all 3 tasks."""
+    print("=" * 60)
+    print("CropDrop Environment - Baseline Inference")
+    print(f"Environment: {ENV_URL}")
+    print(f"Model: {MODEL_NAME}")
+    print(f"API: {API_BASE_URL}")
+    print("=" * 60)
+
+    all_scores = {}
+
+    for task in TASKS:
+        print(f"\n--- Running Task: {task['name']} ({task['difficulty']}) ---")
+        score = run_task(task)
+        all_scores[task["name"]] = score
+        print(f"--- Score: {score:.4f} ---\n")
+
+    # Summary
+    print("=" * 60)
+    print("FINAL SCORES:")
+    for task_name, score in all_scores.items():
+        print(f"  {task_name}: {score:.4f}")
+    avg_score = sum(all_scores.values()) / len(all_scores) if all_scores else 0
+    print(f"  AVERAGE: {avg_score:.4f}")
+    print("=" * 60)
+
+
 if __name__ == "__main__":
-    # Print START marker for validator
-    print("[START] task=cropdrop_inference")
-    sys.stdout.flush()
-    
-    try:
-        # Run all tasks - This makes the API calls through the proxy
-        scores = run_all_tasks()
-        
-        # Print each step with reward
-        step_count = 1
-        for task, score in scores.items():
-            print(f"[STEP] step={step_count} reward={score:.2f}", flush=True)
-            step_count += 1
-        
-        # Calculate final score (average of all tasks)
-        final_score = sum(scores.values()) / len(scores) if scores else 0.0
-        
-        # Print END marker with final score
-        print(f"[END] task=cropdrop_inference score={final_score:.2f}", flush=True)
-        
-    except Exception as e:
-        print(f"[END] task=cropdrop_inference error={str(e)}", flush=True)
-        sys.exit(1)
+    main()
