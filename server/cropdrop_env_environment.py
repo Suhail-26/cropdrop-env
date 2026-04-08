@@ -6,14 +6,10 @@ import random
 from models import CropdropAction, CropdropObservation
 
 class CropdropEnvironment:
-    """Crop delivery logistics environment with spoilage timing"""
-
     def __init__(self):
-        """Initialize the environment"""
         self.reset()
 
     def reset(self):
-        """Initialize new episode (sync version)"""
         self.current_time = 0
         self.crops = self._generate_crops()
         self.delivered_crops = []
@@ -28,15 +24,12 @@ class CropdropEnvironment:
             "dirt": {"base_time": 4, "congestion": 0},
             "muddy": {"base_time": 7, "congestion": 0}
         }
-        return self._get_observation()
+        return self._get_observation(reward=0.0, done=False)
 
     async def reset_async(self):
-        """Async wrapper for reset (required by OpenEnv server)"""
         return self.reset()
 
     def step(self, action):
-        """Execute one action (sync version)"""
-        # Find the crop being delivered
         crop = None
         for c in self.crops:
             if c["id"] == action.crop_id:
@@ -44,20 +37,20 @@ class CropdropEnvironment:
                 break
 
         if not crop:
-            obs = self._get_observation()
+            obs = self._get_observation(reward=0.0, done=False)
             return obs, 0.0, False, {"error": "Invalid crop"}
 
         if crop["spoilage_remaining"] <= 0:
-            obs = self._get_observation()
+            obs = self._get_observation(reward=0.0, done=False)
             return obs, 0.0, False, {"error": "Crop already spoiled"}
 
         route_info = self.routes[action.route]
         travel_time = route_info["base_time"] + route_info["congestion"]
-
         reward = 0.0
         freshness = 0.0
 
         if travel_time >= crop["spoilage_remaining"]:
+            reward = -0.5   # strong penalty for spoilage
             crop["spoilage_remaining"] = 0
             self._last_action_result = "spoiled"
         else:
@@ -72,7 +65,7 @@ class CropdropEnvironment:
                 self.crops.remove(crop)
                 self._last_action_result = "success"
             else:
-                reward = 0.2
+                reward = 0.0
                 self._last_action_result = "wrong_zone"
 
         self.current_time += travel_time
@@ -83,16 +76,14 @@ class CropdropEnvironment:
         self.trajectory["total_time"] = self.current_time
 
         done = len(self.crops) == 0
-        observation = self._get_observation(reward=reward, freshness=freshness)
+        observation = self._get_observation(reward=reward, done=done, freshness=freshness)
         info = {"delivered": len(self.delivered_crops)}
         return observation, reward, done, info
 
     async def step_async(self, action):
-        """Async wrapper for step (required by OpenEnv server)"""
         return self.step(action)
 
     def state(self):
-        """Return episode metadata"""
         return {
             "current_time": self.current_time,
             "crops_remaining": len(self.crops),
@@ -101,11 +92,9 @@ class CropdropEnvironment:
         }
 
     def close(self):
-        """Clean up resources (required by OpenEnv server)"""
         pass
 
-    def _get_observation(self, reward=0.0, freshness=0.0):
-        """Create observation object"""
+    def _get_observation(self, reward=0.0, done=False, freshness=0.0):
         return CropdropObservation(
             current_time=self.current_time,
             crops=self.crops.copy(),
@@ -116,11 +105,12 @@ class CropdropEnvironment:
             pending_orders=[],
             last_action_result=self._last_action_result,
             delivered_zone=self.trajectory["delivered_crops"][-1].get("delivered_zone") if self.trajectory["delivered_crops"] else None,
-            reward_breakdown={"reward": reward, "freshness_bonus": freshness} if reward > 0 else None
+            reward_breakdown={"reward": reward, "freshness_bonus": freshness} if reward > 0 else None,
+            reward=reward,
+            done=done
         )
 
     def _generate_crops(self):
-        """Generate random crops with varying spoilage times and zones"""
         crop_types = [
             {"type": "tomato", "color": "red", "spoilage": 10, "zone": "zone_1"},
             {"type": "corn", "color": "yellow", "spoilage": 15, "zone": "zone_2"},
@@ -143,12 +133,10 @@ class CropdropEnvironment:
         return crops
 
     def _update_congestion(self):
-        """Update route congestion dynamically"""
         for route in self.routes.values():
             route["congestion"] = max(0, route["congestion"] + random.randint(-1, 2))
 
     def get_grader_score(self, task_name: str):
-        """Return grader score for a given task"""
         from graders import EasyGrader, MediumGrader, HardGrader
         if task_name == "single_priority_delivery":
             return EasyGrader().grade(self.trajectory)
