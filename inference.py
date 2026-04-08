@@ -1,7 +1,13 @@
 """
-Baseline inference script for CropDrop environment
-Uses OpenAI client with the hackathon's LLM proxy.
-Outputs structured blocks for validator: [START], [STEP], [END].
+inference.py -- CropDrop AI Agent (Hackathon Submission)
+
+Runs episodes for easy/medium/hard tasks using an LLM to decide delivery actions.
+Prints structured logs consumed by the judge.
+
+Required environment variables:
+    API_BASE_URL  -- OpenAI-compatible API base URL
+    API_KEY       -- API key (or HF_TOKEN)
+    MODEL_NAME    -- Model identifier (default: gpt-3.5-turbo)
 """
 
 import os
@@ -12,11 +18,11 @@ from openai import OpenAI
 from server.cropdrop_env_environment import CropdropEnvironment
 from models import CropdropAction
 
-# ============================================================
-# Use hackathon's environment variables (no defaults for API_KEY)
-# ============================================================
+# ----------------------------------------------------------------------
+# Environment variables (must be set by evaluator)
+# ----------------------------------------------------------------------
 API_BASE_URL = os.environ.get("API_BASE_URL")
-API_KEY = os.environ.get("API_KEY")      # or HF_TOKEN
+API_KEY = os.environ.get("API_KEY")          # or HF_TOKEN
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-3.5-turbo")
 
 if not API_BASE_URL or not API_KEY:
@@ -24,8 +30,10 @@ if not API_BASE_URL or not API_KEY:
 
 client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
+# ----------------------------------------------------------------------
+# LLM action decision (with fallback)
+# ----------------------------------------------------------------------
 def get_llm_action(observation, crops, routes):
-    """Call LLM; fallback to random on any error."""
     prompt = f"""
 You are controlling a crop delivery robot.
 Current time: {observation.current_time}
@@ -56,12 +64,26 @@ Choose an action. Reply ONLY with a JSON object:
             destination_zone=random.choice(["zone_1", "zone_2"])
         )
 
-def run_task(task_name, env, max_steps=20):
-    """Run one episode and print structured output."""
-    print(f"[START]task={task_name}", flush=True)
+# ----------------------------------------------------------------------
+# Structured logging (judge‑parsed)
+# ----------------------------------------------------------------------
+def log_start(task: str):
+    print(f"[START] task={task}", flush=True)
+
+def log_step(step: int, reward: float):
+    print(f"[STEP] step={step} reward={reward:.3f}", flush=True)
+
+def log_end(task: str, score: float, steps: int):
+    print(f"[END] task={task} score={score:.3f} steps={steps}", flush=True)
+
+# ----------------------------------------------------------------------
+# Episode runner
+# ----------------------------------------------------------------------
+def run_task(task_name: str, env: CropdropEnvironment, max_steps: int = 20) -> float:
+    log_start(task_name)
     obs = env.reset()
     total_reward = 0.0
-    step = 0
+    steps = 0
 
     for step in range(1, max_steps + 1):
         if not env.crops:
@@ -69,25 +91,27 @@ def run_task(task_name, env, max_steps=20):
         action = get_llm_action(obs, env.crops, env.routes)
         obs, reward, done, _ = env.step(action)
         total_reward += reward
-        print(f"[STEP]step={step} reward={reward:.3f}", flush=True)
+        log_step(step, reward)
+        steps = step
         if done:
             break
 
-    print(f"[END]task={task_name} score={total_reward:.3f} steps={step}", flush=True)
-    return total_reward
+    # Clamp score strictly between 0 and 1 (0.001 .. 0.999)
+    score = max(0.001, min(0.999, total_reward / max(steps, 1)))
+    log_end(task_name, score, steps)
+    return score
 
 def run_all_tasks():
-    """Run easy, medium, hard tasks."""
     # Easy: single crop
     env = CropdropEnvironment()
     env.crops = [env.crops[0]]
     run_task("easy", env)
 
-    # Medium: 3 crops, no congestion (default)
+    # Medium: 3 crops (default)
     env = CropdropEnvironment()
     run_task("medium", env)
 
-    # Hard: 3 crops with congestion (same as default, but congestion active)
+    # Hard: 3 crops + congestion (default)
     env = CropdropEnvironment()
     run_task("hard", env)
 
