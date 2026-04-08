@@ -3,13 +3,13 @@ Graders for CropDrop Environment
 Easy, Medium, and Hard tasks
 """
 
+
 class EasyGrader:
     """Single crop delivery - must deliver correctly before spoilage"""
 
     def grade(self, trajectory):
         if not trajectory.get("delivered_crops"):
             return 0.0
-
         crop = trajectory["delivered_crops"][0]
         if crop["intended_zone"] == crop.get("delivered_zone", ""):
             if crop.get("spoilage_remaining", 0) > 0:
@@ -36,7 +36,6 @@ class MediumGrader:
         base_score = correct_count / total_crops
         tomato_delivered = any(crop.get("type") == "tomato" for crop in delivered)
         bonus = 0.2 if tomato_delivered else 0
-
         return min(base_score + bonus, 1.0)
 
 
@@ -53,7 +52,8 @@ class HardGrader:
             return 0.0
 
         correct_count = sum(
-            1 for crop in delivered
+            1
+            for crop in delivered
             if crop["intended_zone"] == crop.get("delivered_zone", "")
         )
         correct_score = correct_count / total_crops
@@ -70,20 +70,18 @@ class HardGrader:
 
         route_penalty = min(0.3, muddy_uses * 0.1)
         final_score = (correct_score * 0.5) + (time_score * 0.3) - route_penalty + 0.2
-
         return max(0.0, min(1.0, final_score))
 
 
-# ── Callable grader functions required by openenv.yaml ──
-_easy = EasyGrader()
-_medium = MediumGrader()
-_hard = HardGrader()
+# ─── Grader registry ───────────────────────────────────────────────────────────
 
-def easy_grader(trajectory):
-    return _easy.grade(trajectory)
+GRADER_REGISTRY = {
+    "single_priority_delivery": EasyGrader(),
+    "multi_crop_prioritization": MediumGrader(),
+    "route_optimization": HardGrader(),
+}
 
-def medium_grader(trajectory):
-    return _medium.grade(trajectory)
 
-def hard_grader(trajectory):
-    return _hard.grade(trajectory)
+def get_grader(task_name: str):
+    """Return the grader instance for a given task name, or None."""
+    return GRADER_REGISTRY.get(task_name)
