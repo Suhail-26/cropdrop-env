@@ -14,3 +14,5 @@ class CropdropObservation(BaseModel):
     last_action_result: Optional[str] = None
     delivered_zone: Optional[str] = None
     reward_breakdown: Optional[Dict[str, Any]] = None
+    reward: Optional[float] = None      # required by OpenEnv
+    done: Optional[bool] = False        # required by OpenEnv
