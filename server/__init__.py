@@ -6,25 +6,6 @@
 
 """Cropdrop Env environment server components."""
 
-import sys
-import os
-
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from .cropdrop_env_environment import CropdropEnvironment
 
-try:
-    from graders import EasyGrader, MediumGrader, HardGrader
-except ImportError:
-    # Fallback if graders are not available yet
-    EasyGrader = None
-    MediumGrader = None
-    HardGrader = None
-
-__all__ = [
-    "CropdropEnvironment",
-    "EasyGrader",
-    "MediumGrader",
-    "HardGrader",
-]
+__all__ = ["CropdropEnvironment"]
