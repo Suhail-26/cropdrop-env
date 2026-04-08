@@ -1,131 +1,68 @@
-"""
-FastAPI server for CropDrop Logistics environment.
-Exposes REST endpoints for OpenEnv evaluation platform.
-"""
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
 
 import sys
 import os
 
-# Make sure the root package is importable when running from /server
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+try:
+    from openenv.core.env_server.http_server import create_app
+except Exception as e:
+    raise ImportError(
+        "openenv is required for the web interface. Install dependencies with:\n"
+        "  pip install -r requirements.txt\n"
+    ) from e
 
-from models import CropdropAction, CropdropObservation
-from graders import GRADER_REGISTRY
-from server.cropdrop_env_environment import CropdropEnvironment
+try:
+    from models import CropdropAction, CropdropObservation
+    from server.cropdrop_env_environment import CropdropEnvironment
+except ModuleNotFoundError:
+    from ..models import CropdropAction, CropdropObservation
+    from .cropdrop_env_environment import CropdropEnvironment
 
-app = FastAPI(
-    title="CropDrop Logistics",
-    description="Agricultural last-mile delivery environment for AI agents",
-    version="1.0.0",
+
+# Create a single shared environment instance so the grader endpoint
+# can access its trajectory.
+env_instance = CropdropEnvironment()
+
+# create_app requires a *callable* (class or factory), not an instance.
+# We wrap env_instance in a lambda so every call returns the SAME object,
+# preserving the shared-state behavior we want.
+app = create_app(
+    env=lambda: env_instance,
+    action_cls=CropdropAction,
+    observation_cls=CropdropObservation,
+    env_name="cropdrop_env",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# Shared environment instance
-env = CropdropEnvironment()
-
-
-# ─── Health ────────────────────────────────────────────────────────────────────
-
+# Health endpoint (required for Docker health check)
 @app.get("/health")
-async def health():
-    return {"status": "ok"}
+def health():
+    return {"status": "healthy"}
 
 
-# ─── Environment endpoints ─────────────────────────────────────────────────────
-
-@app.post("/reset")
-async def reset():
-    """Start a new episode."""
-    obs = env.reset()
-    return obs
+# Root endpoint
+@app.get("/")
+def root():
+    return {"message": "CropDrop Environment is running"}
 
 
-@app.post("/step")
-async def step(action: CropdropAction):
-    """Execute one action and return next observation, reward, done, info."""
-    result = env.step(action)
-    return result
-
-
-@app.get("/state")
-async def state():
-    """Return current episode metadata."""
-    return env.get_state()
-
-
-# ─── Tasks endpoint ────────────────────────────────────────────────────────────
-
-@app.get("/tasks")
-async def list_tasks():
-    """List all tasks with their schemas and grader info."""
-    return {
-        "tasks": [
-            {
-                "name": "single_priority_delivery",
-                "difficulty": "easy",
-                "description": "Deliver one crop to correct zone before spoilage",
-                "grader": "EasyGrader",
-                "has_grader": True,
-            },
-            {
-                "name": "multi_crop_prioritization",
-                "difficulty": "medium",
-                "description": "Deliver 3 crops, prioritize fast-spoiling crops",
-                "grader": "MediumGrader",
-                "has_grader": True,
-            },
-            {
-                "name": "route_optimization",
-                "difficulty": "hard",
-                "description": "Optimize routes with dynamic congestions",
-                "grader": "HardGrader",
-                "has_grader": True,
-            },
-        ]
-    }
-
-
-# ─── Grader endpoint ───────────────────────────────────────────────────────────
-
+# Grader endpoint - uses the shared env_instance to access trajectory
 @app.post("/grader/{task_name}")
-async def grade_task(task_name: str, trajectory: dict = None):
-    """
-    Grade a completed episode trajectory for the given task.
-    Accepts trajectory data in the request body.
-    Falls back to env.get_trajectory() if no body is provided.
-    """
-    grader = GRADER_REGISTRY.get(task_name)
-    if grader is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No grader found for task '{task_name}'. "
-                   f"Available tasks: {list(GRADER_REGISTRY.keys())}",
-        )
-
-    # Use provided trajectory, or pull it from the live environment
-    if trajectory is None or not trajectory:
-        trajectory = env.get_trajectory()
-
-    score = grader.grade(trajectory)
-    return {
-        "task": task_name,
-        "score": round(score, 4),
-        "grader": type(grader).__name__,
-    }
+async def grader(task_name: str):
+    score = env_instance.get_grader_score(task_name)
+    return {"task": task_name, "score": score}
 
 
-# ─── Run directly ──────────────────────────────────────────────────────────────
+def main(host: str = "0.0.0.0", port: int = 7860):
+    import uvicorn
+    uvicorn.run(app, host=host, port=port)
+
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("server.app:app", host="0.0.0.0", port=7860, reload=False)
+    main()
