@@ -3,14 +3,7 @@ CropDrop Environment - Agricultural last-mile delivery simulation
 """
 
 import random
-import sys
-import os
-
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from models import CropdropAction, CropdropObservation
-from graders import EasyGrader, MediumGrader, HardGrader
 
 class CropdropEnvironment:
     """Crop delivery logistics environment with spoilage timing"""
@@ -156,6 +149,7 @@ class CropdropEnvironment:
 
     def get_grader_score(self, task_name: str):
         """Return grader score for a given task"""
+        from graders import EasyGrader, MediumGrader, HardGrader
         if task_name == "single_priority_delivery":
             return EasyGrader().grade(self.trajectory)
         elif task_name == "multi_crop_prioritization":
