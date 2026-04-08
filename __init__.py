@@ -7,8 +7,7 @@
 
 from .client import CropdropEnv
 from .models import CropdropAction, CropdropObservation
-from .graders import EasyGrader, MediumGrader, HardGrader
-from .graders import easy_grader, medium_grader, hard_grader
+from .graders import EasyGrader, MediumGrader, HardGrader, easy_grader, medium_grader, hard_grader
 
 __all__ = [
     "CropdropAction",
