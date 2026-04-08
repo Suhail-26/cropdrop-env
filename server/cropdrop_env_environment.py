@@ -1,213 +1,166 @@
 """
-Core CropDrop environment logic.
-Manages state, step execution, and trajectory tracking.
+CropDrop Environment - Agricultural last-mile delivery simulation
 """
 
 import random
-from typing import List, Dict, Any
+import sys
+import os
 
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# ─── Constants ─────────────────────────────────────────────────────────────────
-
-CROP_TYPES = ["tomato", "lettuce", "carrot"]
-ZONES = ["zone_1", "zone_2"]
-ROUTES = {
-    "paved": {"base_time": 2, "congestion_factor": 0.2},
-    "dirt":  {"base_time": 3, "congestion_factor": 0.1},
-    "muddy": {"base_time": 5, "congestion_factor": 0.05},
-}
-SPOILAGE_RATES = {
-    "tomato":  3,   # spoils fastest
-    "lettuce": 5,
-    "carrot":  8,   # spoils slowest
-}
-INITIAL_SPOILAGE = {
-    "tomato":  6,
-    "lettuce": 10,
-    "carrot":  16,
-}
-
+from models import CropdropAction, CropdropObservation
+from graders import EasyGrader, MediumGrader, HardGrader
 
 class CropdropEnvironment:
-    """CropDrop Logistics simulation environment."""
+    """Crop delivery logistics environment with spoilage timing"""
 
     def __init__(self):
-        self._state: Dict[str, Any] = {}
-        self._trajectory: Dict[str, Any] = {}
+        """Initialize the environment"""
         self.reset()
 
-    # ─── Reset ─────────────────────────────────────────────────────────────────
-
-    def reset(self) -> Dict[str, Any]:
-        crops = []
-        for i, crop_type in enumerate(CROP_TYPES, start=1):
-            crops.append(
-                {
-                    "id": i,
-                    "type": crop_type,
-                    "spoilage_remaining": INITIAL_SPOILAGE[crop_type],
-                    "intended_zone": random.choice(ZONES),
-                }
-            )
-
-        self._state = {
-            "current_time": 0,
-            "crops": crops,
-            "routes_status": self._generate_routes(),
-            "pending_orders": [c["id"] for c in crops],
-            "reward": 0.0,
-            "done": False,
-            "last_action_result": None,
-        }
-
-        self._trajectory = {
+    def reset(self):
+        """Initialize new episode (sync version)"""
+        self.current_time = 0
+        self.crops = self._generate_crops()
+        self.delivered_crops = []
+        self.trajectory = {
             "delivered_crops": [],
             "total_time": 0,
-            "muddy_route_count": 0,
-            "steps": [],
+            "muddy_route_count": 0
         }
+        self._last_action_result = None
+        self.routes = {
+            "paved": {"base_time": 2, "congestion": 0},
+            "dirt": {"base_time": 4, "congestion": 0},
+            "muddy": {"base_time": 7, "congestion": 0}
+        }
+        return self._get_observation()
 
-        return dict(self._state)
+    async def reset_async(self):
+        """Async wrapper for reset (required by OpenEnv server)"""
+        return self.reset()
 
-    # ─── Step ──────────────────────────────────────────────────────────────────
+    def step(self, action):
+        """Execute one action (sync version)"""
+        # Find the crop being delivered
+        crop = None
+        for c in self.crops:
+            if c["id"] == action.crop_id:
+                crop = c
+                break
 
-    def step(self, action) -> Dict[str, Any]:
-        if self._state.get("done", False):
-            return {
-                "observation": self._state,
-                "reward": 0.0,
-                "done": True,
-                "info": {"message": "Episode already finished. Call /reset."},
-            }
+        if not crop:
+            obs = self._get_observation()
+            return obs, 0.0, False, {"error": "Invalid crop"}
 
-        # Support both Pydantic model and plain dict
-        if hasattr(action, "crop_id"):
-            crop_id = action.crop_id
-            route = action.route
-            destination_zone = action.destination_zone
-        else:
-            crop_id = action.get("crop_id", 1)
-            route = action.get("route", "paved")
-            destination_zone = action.get("destination_zone", "zone_1")
+        if crop["spoilage_remaining"] <= 0:
+            obs = self._get_observation()
+            return obs, 0.0, False, {"error": "Crop already spoiled"}
 
-        # Find the crop
-        crop = next(
-            (c for c in self._state["crops"] if c["id"] == crop_id), None
-        )
+        route_info = self.routes[action.route]
+        travel_time = route_info["base_time"] + route_info["congestion"]
 
         reward = 0.0
-        action_result = "invalid_crop"
+        freshness = 0.0
 
-        if crop is None:
-            action_result = f"crop_id {crop_id} not found or already delivered"
+        if travel_time >= crop["spoilage_remaining"]:
+            crop["spoilage_remaining"] = 0
+            self._last_action_result = "spoiled"
         else:
-            # Travel time
-            route_info = ROUTES.get(route, ROUTES["paved"])
-            congestion = self._state["routes_status"].get(route, {}).get(
-                "congestion", 0
-            )
-            travel_time = int(
-                route_info["base_time"] * (1 + congestion * route_info["congestion_factor"])
-            )
-
-            # Tick spoilage for all remaining crops
-            for c in self._state["crops"]:
-                c["spoilage_remaining"] = max(
-                    0, c["spoilage_remaining"] - travel_time
-                )
-
-            self._state["current_time"] += travel_time
-
-            # Track muddy usage
-            if route == "muddy":
-                self._trajectory["muddy_route_count"] += 1
-
-            # Score the delivery
-            correct_zone = crop["intended_zone"] == destination_zone
-            still_fresh = crop["spoilage_remaining"] > 0
-
-            if correct_zone and still_fresh:
-                freshness_bonus = round(crop["spoilage_remaining"] / INITIAL_SPOILAGE[crop["type"]] * 0.3, 4)
-                reward = round(0.7 + freshness_bonus, 4)
-                action_result = "correct_zone_fresh"
-            elif correct_zone and not still_fresh:
-                reward = 0.5
-                action_result = "correct_zone_spoiled"
-            elif not correct_zone and still_fresh:
-                reward = 0.2
-                action_result = "wrong_zone_fresh"
+            crop["spoilage_remaining"] -= travel_time
+            if crop["intended_zone"] == action.destination_zone:
+                freshness = crop["spoilage_remaining"] / crop["initial_spoilage"]
+                reward = 0.7 + (freshness * 0.3)
+                crop_copy = crop.copy()
+                crop_copy["delivered_zone"] = action.destination_zone
+                self.delivered_crops.append(crop_copy)
+                self.trajectory["delivered_crops"].append(crop_copy)
+                self.crops.remove(crop)
+                self._last_action_result = "success"
             else:
-                reward = 0.0
-                action_result = "wrong_zone_spoiled"
+                reward = 0.2
+                self._last_action_result = "wrong_zone"
 
-            # Record delivered crop
-            delivered_record = {
-                "id": crop["id"],
-                "type": crop["type"],
-                "intended_zone": crop["intended_zone"],
-                "delivered_zone": destination_zone,
-                "spoilage_remaining": crop["spoilage_remaining"],
-                "route_used": route,
-                "travel_time": travel_time,
-                "reward": reward,
-            }
-            self._trajectory["delivered_crops"].append(delivered_record)
+        self.current_time += travel_time
+        self._update_congestion()
 
-            # Remove crop from active list
-            self._state["crops"] = [
-                c for c in self._state["crops"] if c["id"] != crop_id
-            ]
-            if crop_id in self._state["pending_orders"]:
-                self._state["pending_orders"].remove(crop_id)
+        if action.route == "muddy":
+            self.trajectory["muddy_route_count"] += 1
+        self.trajectory["total_time"] = self.current_time
 
-        # Update trajectory totals
-        self._trajectory["total_time"] = self._state["current_time"]
-        self._trajectory["steps"].append(
-            {
-                "time": self._state["current_time"],
-                "action": {
-                    "crop_id": crop_id,
-                    "route": route,
-                    "destination_zone": destination_zone,
-                },
-                "reward": reward,
-                "result": action_result,
-            }
-        )
+        done = len(self.crops) == 0
+        observation = self._get_observation(reward=reward, freshness=freshness)
+        info = {"delivered": len(self.delivered_crops)}
+        return observation, reward, done, info
 
-        # Refresh route congestion
-        self._state["routes_status"] = self._generate_routes()
-        self._state["reward"] = reward
-        self._state["last_action_result"] = action_result
+    async def step_async(self, action):
+        """Async wrapper for step (required by OpenEnv server)"""
+        return self.step(action)
 
-        # Episode ends when all crops delivered or time limit hit
-        done = len(self._state["crops"]) == 0 or self._state["current_time"] >= 50
-        self._state["done"] = done
-
+    def state(self):
+        """Return episode metadata"""
         return {
-            "observation": dict(self._state),
-            "reward": reward,
-            "done": done,
-            "info": {"action_result": action_result},
+            "current_time": self.current_time,
+            "crops_remaining": len(self.crops),
+            "delivered": len(self.delivered_crops),
+            "spoiled": len([c for c in self.crops if c["spoilage_remaining"] <= 0])
         }
 
-    # ─── Helpers ───────────────────────────────────────────────────────────────
+    def close(self):
+        """Clean up resources (required by OpenEnv server)"""
+        pass
 
-    def get_state(self) -> Dict[str, Any]:
-        return dict(self._state)
+    def _get_observation(self, reward=0.0, freshness=0.0):
+        """Create observation object"""
+        return CropdropObservation(
+            current_time=self.current_time,
+            crops=self.crops.copy(),
+            routes_status={
+                k: {"congestion": v["congestion"], "estimated_time": v["base_time"] + v["congestion"]}
+                for k, v in self.routes.items()
+            },
+            pending_orders=[],
+            last_action_result=self._last_action_result,
+            delivered_zone=self.trajectory["delivered_crops"][-1].get("delivered_zone") if self.trajectory["delivered_crops"] else None,
+            reward_breakdown={"reward": reward, "freshness_bonus": freshness} if reward > 0 else None
+        )
 
-    def get_trajectory(self) -> Dict[str, Any]:
-        return dict(self._trajectory)
+    def _generate_crops(self):
+        """Generate random crops with varying spoilage times and zones"""
+        crop_types = [
+            {"type": "tomato", "color": "red", "spoilage": 10, "zone": "zone_1"},
+            {"type": "corn", "color": "yellow", "spoilage": 15, "zone": "zone_2"},
+            {"type": "potato", "color": "brown", "spoilage": 20, "zone": "zone_1"},
+            {"type": "carrot", "color": "orange", "spoilage": 12, "zone": "zone_2"},
+            {"type": "lettuce", "color": "green", "spoilage": 8, "zone": "zone_1"},
+        ]
+        selected = random.sample(crop_types, 3)
+        crops = []
+        for i, crop in enumerate(selected, 1):
+            spoilage = crop["spoilage"] * random.uniform(0.8, 1.2)
+            crops.append({
+                "id": i,
+                "type": crop["type"],
+                "color": crop["color"],
+                "spoilage_remaining": int(spoilage),
+                "initial_spoilage": int(spoilage),
+                "intended_zone": crop["zone"],
+            })
+        return crops
 
-    def _generate_routes(self) -> Dict[str, Any]:
-        routes_status = {}
-        for route_name, info in ROUTES.items():
-            congestion = round(random.uniform(0, 1), 2)
-            estimated_time = int(
-                info["base_time"] * (1 + congestion * info["congestion_factor"])
-            )
-            routes_status[route_name] = {
-                "congestion": congestion,
-                "estimated_time": estimated_time,
-            }
-        return routes_status
+    def _update_congestion(self):
+        """Update route congestion dynamically"""
+        for route in self.routes.values():
+            route["congestion"] = max(0, route["congestion"] + random.randint(-1, 2))
+
+    def get_grader_score(self, task_name: str):
+        """Return grader score for a given task"""
+        if task_name == "single_priority_delivery":
+            return EasyGrader().grade(self.trajectory)
+        elif task_name == "multi_crop_prioritization":
+            return MediumGrader().grade(self.trajectory)
+        elif task_name == "route_optimization":
+            return HardGrader().grade(self.trajectory)
+        else:
+            return 0.0
