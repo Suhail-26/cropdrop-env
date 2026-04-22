@@ -1,20 +1,119 @@
-name: cropdrop-logistics
-version: 1.0.0
-description: Time-sensitive agricultural crop delivery environment
+"""
+inference.py -- CropDrop AI Agent (Hackathon Submission)
 
-environment_class: CropdropEnvironment
-observation_model: CropdropObservation
-action_model: CropdropAction
+Runs episodes for easy/medium/hard tasks using an LLM to decide delivery actions.
+Prints structured logs consumed by the judge.
 
-tasks:
-  - name: single_priority_delivery
-    difficulty: easy
-    description: Deliver one crop to correct zone before spoilage
-    
-  - name: multi_crop_prioritization
-    difficulty: medium
-    description: Deliver 3 crops, prioritize fast-spoiling crops
-    
-  - name: route_optimization
-    difficulty: hard
-    description: Optimize routes with dynamic congestions
+Required environment variables:
+    API_BASE_URL  -- OpenAI-compatible API base URL
+    API_KEY       -- API key (or HF_TOKEN)
+    MODEL_NAME    -- Model identifier (default: gpt-3.5-turbo)
+"""
+
+import os
+import sys
+import json
+import random
+from openai import OpenAI
+from server.cropdrop_env_environment import CropdropEnvironment
+from models import CropdropAction
+
+# ----------------------------------------------------------------------
+# Environment variables (must be set by evaluator)
+# ----------------------------------------------------------------------
+API_BASE_URL = os.environ.get("API_BASE_URL")
+API_KEY = os.environ.get("API_KEY")          # or HF_TOKEN
+MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-3.5-turbo")
+
+if not API_BASE_URL or not API_KEY:
+    raise ValueError("API_BASE_URL and API_KEY must be set by the evaluator.")
+
+client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+
+# ----------------------------------------------------------------------
+# LLM action decision (with fallback)
+# ----------------------------------------------------------------------
+def get_llm_action(observation, crops, routes):
+    prompt = f"""
+You are controlling a crop delivery robot.
+Current time: {observation.current_time}
+Available crops: {json.dumps(crops, indent=2)}
+Routes: {json.dumps(routes, indent=2)}
+
+Choose an action. Reply ONLY with a JSON object:
+{{"crop_id": <id>, "route": "paved" or "dirt" or "muddy", "destination_zone": "zone_1" or "zone_2"}}
+"""
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=100
+        )
+        action_data = json.loads(response.choices[0].message.content)
+        return CropdropAction(
+            crop_id=action_data["crop_id"],
+            route=action_data["route"],
+            destination_zone=action_data["destination_zone"]
+        )
+    except Exception as e:
+        print(f"Warning: LLM call failed ({e}). Using random fallback.", file=sys.stderr)
+        return CropdropAction(
+            crop_id=random.choice(crops)["id"],
+            route=random.choice(["paved", "dirt", "muddy"]),
+            destination_zone=random.choice(["zone_1", "zone_2"])
+        )
+
+# ----------------------------------------------------------------------
+# Structured logging (judge‑parsed)
+# ----------------------------------------------------------------------
+def log_start(task: str):
+    print(f"[START] task={task}", flush=True)
+
+def log_step(step: int, reward: float):
+    print(f"[STEP] step={step} reward={reward:.3f}", flush=True)
+
+def log_end(task: str, score: float, steps: int):
+    print(f"[END] task={task} score={score:.3f} steps={steps}", flush=True)
+
+# ----------------------------------------------------------------------
+# Episode runner
+# ----------------------------------------------------------------------
+def run_task(task_name: str, env: CropdropEnvironment, max_steps: int = 20) -> float:
+    log_start(task_name)
+    obs = env.reset()
+    total_reward = 0.0
+    steps = 0
+
+    for step in range(1, max_steps + 1):
+        if not env.crops:
+            break
+        action = get_llm_action(obs, env.crops, env.routes)
+        obs, reward, done, _ = env.step(action)
+        total_reward += reward
+        log_step(step, reward)
+        steps = step
+        if done:
+            break
+
+    # Clamp score strictly between 0 and 1 (0.001 .. 0.999)
+    score = max(0.001, min(0.999, total_reward / max(steps, 1)))
+    log_end(task_name, score, steps)
+    return score
+
+def run_all_tasks():
+    # Easy: single crop
+    env = CropdropEnvironment()
+    env.crops = [env.crops[0]]
+    run_task("easy", env)
+
+    # Medium: 3 crops (default)
+    env = CropdropEnvironment()
+    run_task("medium", env)
+
+    # Hard: 3 crops + congestion (default)
+    env = CropdropEnvironment()
+    run_task("hard", env)
+
+if __name__ == "__main__":
+    run_all_tasks()

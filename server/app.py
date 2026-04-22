@@ -1,62 +1,156 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
+"""
+CropOps Agent - Round 2 FastAPI Server
+Replaces Round 1 CropDrop server.
 
-try:
-    from openenv.core.env_server.http_server import create_app
-except Exception as e:
-    raise ImportError(
-        "openenv is required for the web interface. Install dependencies with:\n"
-        "  pip install -r requirements.txt\n"
-    ) from e
+Same API shape (/reset, /step, /state, /tasks, /grader/{task_name})
+so the OpenEnv client needs minimal changes.
+"""
 
-try:
-    from models import CropdropAction, CropdropObservation
-    from server.cropdrop_env_environment import CropdropEnvironment
-except ModuleNotFoundError:
-    from ..models import CropdropAction, CropdropObservation
-    from .cropdrop_env_environment import CropdropEnvironment
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from typing import Dict, Any
+import json
 
+from server.cropops_env_environment import CropOpsEnvironment
+from models import CropOpsAction, CropOpsObservation
+from graders import EasyGrader, MediumGrader, HardGrader
 
-# Create a single shared environment instance so the grader endpoint
-# can access its trajectory.
-env_instance = CropdropEnvironment()
-
-# create_app requires a *callable* (class or factory), not an instance.
-# We wrap env_instance in a lambda so every call returns the SAME object,
-# preserving the shared-state behavior we want.
-app = create_app(
-    env=lambda: env_instance,
-    action_cls=CropdropAction,
-    observation_cls=CropdropObservation,
-    env_name="cropdrop_env",
+app = FastAPI(
+    title="CropOps Agent Environment",
+    description="Round 2 — Grid-based agricultural delivery with disruptions",
+    version="2.0.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Health endpoint (required for Docker health check)
+# Global environment instance (single-session; fine for hackathon)
+env = CropOpsEnvironment()
+episode_trajectory: Dict[str, Any] = {}
+
+
+# ── /reset ────────────────────────────────────────────────────
+@app.post("/reset")
+def reset():
+    """Start a new episode. Returns the initial observation."""
+    global episode_trajectory
+    obs = env.reset()
+    episode_trajectory = {
+        "delivered_crops": [],
+        "total_steps": 0,
+        "disruptions_encountered": 0,
+    }
+    return obs
+
+
+# ── /step ─────────────────────────────────────────────────────
+@app.post("/step")
+def step(action: CropOpsAction):
+    """
+    Execute one action. Returns observation, reward, done, info.
+    Action must be one of: up, down, left, right, pickup, dropoff
+    """
+    obs, reward, done, info = env.step(action.action)
+
+    # Update trajectory for graders
+    episode_trajectory["total_steps"] = obs["current_time"]
+    episode_trajectory["disruptions_encountered"] = len(info.get("disruptions", []))
+    episode_trajectory["delivered_crops"] = env.delivered_crops
+
+    return {
+        "observation": obs,
+        "reward": reward,
+        "done": done,
+        "info": info,
+    }
+
+
+# ── /state ────────────────────────────────────────────────────
+@app.get("/state")
+def get_state():
+    """Get current environment state and episode metadata."""
+    return {
+        "current_time": env.current_time,
+        "agent_position": env.agent_pos,
+        "done": env.done,
+        "total_reward": env.total_reward,
+        "crops_delivered": len(env.delivered_crops),
+        "crops_pending": len([c for c in env.crops if not c["delivered"]]),
+        "disruptions_so_far": len(env.disruptions_log),
+    }
+
+
+# ── /tasks ────────────────────────────────────────────────────
+@app.get("/tasks")
+def get_tasks():
+    """List all tasks with action/observation schemas."""
+    return {
+        "tasks": [
+            {
+                "name": "single_priority_delivery",
+                "difficulty": "easy",
+                "description": "Pick up 1 crop and deliver it to the correct warehouse zone before it spoils.",
+                "max_steps": 20,
+                "action_schema": {
+                    "action": "one of: up, down, left, right, pickup, dropoff"
+                },
+            },
+            {
+                "name": "multi_crop_prioritization",
+                "difficulty": "medium",
+                "description": "Deliver all 3 crops to correct zones. Prioritize the fast-spoiling tomato first.",
+                "max_steps": 40,
+                "action_schema": {
+                    "action": "one of: up, down, left, right, pickup, dropoff"
+                },
+            },
+            {
+                "name": "route_optimization",
+                "difficulty": "hard",
+                "description": "Deliver all crops efficiently despite road blocks, rain, and vehicle breakdowns.",
+                "max_steps": 50,
+                "action_schema": {
+                    "action": "one of: up, down, left, right, pickup, dropoff"
+                },
+            },
+        ]
+    }
+
+
+# ── /grader/{task_name} ───────────────────────────────────────
+@app.post("/grader/{task_name}")
+def grade(task_name: str):
+    """Grade the completed episode for the given task."""
+    graders = {
+        "single_priority_delivery": EasyGrader(),
+        "multi_crop_prioritization": MediumGrader(),
+        "route_optimization": HardGrader(),
+    }
+    if task_name not in graders:
+        raise HTTPException(status_code=404, detail=f"Unknown task: {task_name}")
+
+    score = graders[task_name].grade(episode_trajectory)
+    return {
+        "task": task_name,
+        "score": score,
+        "delivered_crops": len(episode_trajectory.get("delivered_crops", [])),
+        "total_steps": episode_trajectory.get("total_steps", 0),
+        "disruptions_encountered": episode_trajectory.get("disruptions_encountered", 0),
+    }
+
+
+# ── /render ───────────────────────────────────────────────────
+@app.get("/render")
+def render():
+    """ASCII render of the current grid state (for debugging)."""
+    return {"grid": env.render()}
+
+
+# ── /health ──────────────────────────────────────────────────
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
-
-
-# Root endpoint
-@app.get("/")
-def root():
-    return {"message": "CropDrop Environment is running"}
-
-
-# Grader endpoint - uses the shared env_instance to access trajectory
-@app.post("/grader/{task_name}")
-async def grader(task_name: str):
-    score = env_instance.get_grader_score(task_name)
-    return {"task": task_name, "score": score}
-
-
-def main(host: str = "0.0.0.0", port: int = 7860):
-    import uvicorn
-    uvicorn.run(app, host=host, port=port)
-
-
-if __name__ == "__main__":
-    main()
+    return {"status": "ok", "version": "2.0.0", "project": "CropOps Agent"}

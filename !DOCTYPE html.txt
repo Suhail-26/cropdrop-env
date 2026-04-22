@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Happy Birthday Tabbu 🎀 | Our Special Journey</title>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Quicksand:wght@400;500;600;700&family=Space+Grotesk:wght@700;900&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--pink:#f472b6;--red:#be123c;--gold:#f59e0b;}
+html{scroll-behavior:smooth;}
+body{background:#0a0a0a;font-family:'Quicksand',sans-serif;color:white;overflow-x:hidden;}
+
+.hbg{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.fh{position:absolute;opacity:0;animation:fup linear infinite;}
+@keyframes fup{0%{opacity:0;transform:translateY(0) rotate(-10deg)}10%{opacity:.6}90%{opacity:.3}100%{opacity:0;transform:translateY(-100vh) rotate(25deg)}}
+
+.nav{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:99;display:flex;flex-direction:column;gap:10px;}
+.nd{width:7px;height:7px;border-radius:50%;background:rgba(244,114,182,.2);border:1.5px solid rgba(244,114,182,.4);cursor:pointer;transition:.3s;}
+.nd.on{background:var(--pink);transform:scale(1.5);}
+
+section{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;overflow:hidden;}
+.ch-lbl{font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--pink);opacity:.6;margin-bottom:10px;text-align:center;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes jmp{from{transform:translateY(0)}to{transform:translateY(-14px)}}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+.sr{opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s;}
+.sr.vis{opacity:1;transform:translateY(0);}
+
+/* ══ CH1 CINEMATIC ══ */
+#c1{background:#000;}
+#c1 canvas{position:absolute;inset:0;pointer-events:none;}
+.cin-wrap{position:relative;z-index:2;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.cin-pre{font-size:11px;letter-spacing:6px;text-transform:uppercase;color:rgba(244,114,182,.5);opacity:0;animation:fadeUp 1s ease forwards .4s;}
+.cin-name{font-family:'Space Grotesk',sans-serif;font-size:clamp(52px,16vw,110px);font-weight:900;line-height:.95;background:linear-gradient(135deg,#fff 0%,#fce7f3 30%,var(--pink) 60%,#fff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;background-size:200%;opacity:0;animation:cinBurst 1.2s cubic-bezier(.175,.885,.32,1.275) forwards .9s,shimmer 3s ease-in-out infinite 2.5s;}
+@keyframes cinBurst{0%{opacity:0;transform:scale(.3) translateY(40px);filter:blur(20px)}70%{opacity:1;transform:scale(1.08);filter:blur(0)}100%{opacity:1;transform:scale(1);}}
+@keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.cin-sub{font-family:'Dancing Script',cursive;font-size:clamp(18px,5vw,28px);color:rgba(255,255,255,.7);opacity:0;animation:fadeUp 1s ease forwards 1.8s;margin-top:8px;}
+.cin-date{font-size:11px;letter-spacing:5px;text-transform:uppercase;color:rgba(244,114,182,.5);opacity:0;animation:fadeUp .8s ease forwards 2.4s;margin-top:18px;}
+.cin-btn{margin-top:36px;padding:14px 44px;background:rgba(244,114,182,.12);border:1px solid rgba(244,114,182,.4);border-radius:50px;color:var(--pink);font-family:'Quicksand',sans-serif;font-weight:700;font-size:14px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;opacity:0;animation:fadeUp .8s ease forwards 3s;transition:.2s;backdrop-filter:blur(8px);}
+.cin-btn:hover{background:rgba(244,114,182,.25);transform:scale(1.04);}
+
+/* ══ CH2 SCRAPBOOK ══ */
+#c2{background:#f0ebe4;padding:50px 20px;}
+.scrap-book{max-width:400px;width:100%;background:white;border-radius:4px;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.scrap-dots{background:white;background-image:radial-gradient(circle,#ddd 1px,transparent 1px);background-size:18px 18px;padding:28px 24px;}
+.scrap-label{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,7vw,36px);font-weight:900;color:var(--red);text-transform:uppercase;line-height:1;margin-bottom:6px;}
+.scrap-sub{font-family:'Caveat',cursive;font-size:18px;color:#555;margin-bottom:16px;}
+.scrap-photo{width:100%;aspect-ratio:4/3;background:linear-gradient(135deg,#f3e8ff,#fce7f3);border:2px solid #eee;border-radius:4px;overflow:hidden;margin-bottom:12px;position:relative;display:flex;align-items:center;justify-content:center;}
+.scrap-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+.ph-fb{display:flex;flex-direction:column;align-items:center;gap:6px;color:#bbb;font-size:10px;letter-spacing:2px;text-transform:uppercase;}
+.ph-fb span{font-size:32px;}
+.tape{position:absolute;width:50px;height:16px;background:rgba(250,220,180,.55);border-radius:2px;transform:rotate(-5deg);top:-6px;left:38%;}
+.scrap-ann{font-family:'Caveat',cursive;font-size:15px;color:#444;margin-bottom:3px;display:flex;align-items:center;gap:5px;}
+.scrap-ann::before{content:'↳';color:var(--pink);}
+.scrap-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+.scrap-mini{aspect-ratio:1;background:linear-gradient(135deg,#f3e8ff,#fce7f3);border:2px solid #eee;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.scrap-mini img{width:100%;height:100%;object-fit:cover;}
+.mini-fb{font-size:22px;opacity:.4;}
+
+/* ══ CH3 LETTER ══ */
+#c3{background:#fff8fc;}
+.letter{max-width:440px;width:100%;background:white;border:1px solid #fce7f3;border-radius:3px;padding:40px 32px;position:relative;box-shadow:0 8px 40px rgba(190,18,60,.06);}
+.letter::before,.letter::after{content:'';position:absolute;width:18px;height:18px;border-color:var(--pink);border-style:solid;}
+.letter::before{top:12px;left:12px;border-width:1.5px 0 0 1.5px;}
+.letter::after{bottom:12px;right:12px;border-width:0 1.5px 1.5px 0;}
+.letter-h{font-family:'Dancing Script',cursive;font-size:26px;color:var(--red);text-align:center;margin-bottom:4px;}
+.letter-pg{font-size:10px;letter-spacing:3px;color:#c084fc;text-align:center;margin-bottom:24px;text-transform:uppercase;}
+.letter-body{font-family:'Caveat',cursive;font-size:17px;line-height:1.9;color:#3d1a2e;}
+.letter-body b{color:var(--red);}
+.letter-sig{text-align:right;font-family:'Dancing Script',cursive;font-size:22px;color:var(--pink);margin-top:16px;}
+
+/* ══ CH4 POLAROIDS ══ */
+#c4{background:linear-gradient(160deg,#1a1015,#0d0a10);padding:60px 0;}
+.pol-h{font-family:'Dancing Script',cursive;font-size:clamp(28px,7vw,46px);color:white;text-align:center;margin-bottom:4px;}
+.pol-s{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#555;text-align:center;margin-bottom:28px;}
+.pol-track{display:flex;gap:16px;overflow-x:auto;padding:20px 20px 28px;scrollbar-width:none;-webkit-overflow-scrolling:touch;cursor:grab;}
+.pol-track:active{cursor:grabbing;}
+.pol-track::-webkit-scrollbar{display:none;}
+.pol{background:white;border-radius:2px;padding:10px 10px 36px;width:175px;min-width:175px;box-shadow:0 12px 40px rgba(0,0,0,.5);position:relative;transform:rotate(var(--r));transition:transform .3s;transform-style:preserve-3d;}
+.pol:hover{transform:rotate(0deg) scale(1.06) translateY(-8px);}
+.pol-inner{width:100%;transform-style:preserve-3d;transition:transform .6s ease;}
+.pol.flip .pol-inner{transform:rotateY(180deg);}
+.pol-front,.pol-back{backface-visibility:hidden;}
+.pol-back{position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:#fce7f3;border-radius:2px;display:flex;align-items:center;justify-content:center;padding:12px;}
+.pol-back p{font-family:'Caveat',cursive;font-size:14px;color:var(--red);text-align:center;line-height:1.5;}
+.pol-img{width:100%;aspect-ratio:1;overflow:hidden;border-radius:2px;background:linear-gradient(135deg,#f3e8ff,#fce7f3);display:flex;align-items:center;justify-content:center;}
+.pol-img img{width:100%;height:100%;object-fit:cover;filter:sepia(10%) contrast(1.05);}
+.pol-img-ph{font-size:32px;opacity:.4;}
+.pol-cap{font-family:'Caveat',cursive;font-size:13px;color:#3d1a2e;text-align:center;position:absolute;bottom:8px;left:0;right:0;}
+.pol-hint{font-size:10px;letter-spacing:2px;color:#555;text-align:center;margin-top:10px;text-transform:uppercase;}
+
+/* ══ CH5 FILM ROLL ══ */
+#c5{background:#111;padding:50px 0;}
+.film-h{font-family:'Dancing Script',cursive;font-size:clamp(28px,7vw,44px);color:white;text-align:center;margin-bottom:4px;}
+.film-s{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#444;text-align:center;margin-bottom:24px;}
+.film-holes{display:flex;gap:10px;padding:5px 0;background:#1a1a1a;overflow:hidden;}
+.film-hole{width:18px;height:13px;border-radius:3px;background:#111;flex-shrink:0;}
+.film-strip{display:flex;overflow-x:auto;cursor:grab;scrollbar-width:none;background:#1a1a1a;}
+.film-strip:active{cursor:grabbing;}
+.film-strip::-webkit-scrollbar{display:none;}
+.film-frame{flex-shrink:0;width:190px;border-right:2px solid #111;}
+.film-img-wrap{width:190px;height:145px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#2a1a2a,#1a0a1a);}
+.film-img-wrap img{width:100%;height:100%;object-fit:cover;filter:sepia(15%) contrast(1.05);transition:filter .3s;display:block;}
+.film-img-wrap:hover img{filter:none;}
+.film-img-ph{display:flex;flex-direction:column;align-items:center;gap:4px;color:#444;}
+.film-img-ph span{font-size:26px;opacity:.4;}
+.film-img-ph p{font-size:9px;letter-spacing:2px;text-transform:uppercase;}
+.film-cap{font-family:'Caveat',cursive;font-size:13px;color:#888;text-align:center;padding:5px 8px;background:#1a1a1a;}
+.film-footer{text-align:center;margin-top:14px;font-size:11px;color:#333;letter-spacing:2px;text-transform:uppercase;}
+
+/* ══ CH6 STICKY NOTES ══ */
+#c6{background:#2d1f1f;padding:60px 20px;}
+.cork{max-width:460px;width:100%;background:#8b6344;border-radius:8px;padding:26px 18px;box-shadow:inset 0 2px 8px rgba(0,0,0,.3),0 16px 48px rgba(0,0,0,.5);}
+.cork-title{font-family:'Dancing Script',cursive;font-size:clamp(22px,5vw,32px);color:#fde68a;text-align:center;margin-bottom:4px;text-shadow:0 2px 4px rgba(0,0,0,.3);}
+.cork-sub{font-size:10px;letter-spacing:3px;color:rgba(253,230,138,.4);text-align:center;margin-bottom:20px;text-transform:uppercase;}
+.notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.sticky{padding:14px 12px 18px;border-radius:2px;position:relative;box-shadow:3px 4px 12px rgba(0,0,0,.28);transition:transform .3s;}
+.sticky:hover{transform:scale(1.04) translateY(-3px)!important;}
+.sticky::before{content:'';position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:20px;height:8px;background:rgba(255,255,255,.4);border-radius:2px;}
+.sticky p{font-family:'Caveat',cursive;font-size:14px;line-height:1.5;}
+.ne{font-size:20px;margin-bottom:5px;display:block;}
+.sy{background:#fef08a;color:#713f12;transform:rotate(-2deg);}
+.sp{background:#f9a8d4;color:#831843;transform:rotate(1.5deg);}
+.sg{background:#86efac;color:#14532d;transform:rotate(-1deg);}
+.sb{background:#93c5fd;color:#1e3a5f;transform:rotate(2deg);}
+.so{background:#fdba74;color:#7c2d12;transform:rotate(-1.5deg);}
+.sl{background:#d8b4fe;color:#4c1d95;transform:rotate(1deg);}
+
+/* ══ CH7 CAKE CUTTING ══ */
+#c7{background:radial-gradient(ellipse at top,#1a0010,#0a0a0a);}
+.cake-wrap{text-align:center;max-width:400px;width:100%;}
+.cake-title{font-family:'Dancing Script',cursive;font-size:clamp(26px,7vw,42px);color:var(--gold);margin-bottom:6px;}
+.cake-sub-lbl{font-size:11px;color:#555;letter-spacing:2px;margin-bottom:28px;text-transform:uppercase;}
+.cake-stage{width:220px;height:220px;margin:0 auto 18px;}
+#cakeCanvas{display:block;width:100%;height:100%;}
+.cake-hint{font-size:12px;color:var(--pink);letter-spacing:1px;margin-bottom:14px;animation:pulse 1.5s ease-in-out infinite;}
+.cut-btn{padding:14px 40px;background:linear-gradient(135deg,var(--gold),#d97706);border:none;border-radius:50px;color:#1a0a00;font-family:'Quicksand',sans-serif;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 8px 24px rgba(245,158,11,.3);transition:.2s;}
+.cut-btn:hover{transform:scale(1.04);}
+.cut-btn:disabled{opacity:.4;cursor:default;transform:none;}
+.cake-done{display:none;font-family:'Dancing Script',cursive;font-size:clamp(20px,5vw,30px);color:white;margin-top:14px;animation:fadeUp .6s ease;}
+.cake-done.show{display:block;}
+
+/* ══ CH8 FINALE ══ */
+#c8{background:linear-gradient(160deg,#fce7f3,#f9a8d4,#fce7f3);}
+#c8 canvas{position:absolute;inset:0;pointer-events:none;width:100%;height:100%;}
+.finale-inner{position:relative;z-index:1;text-align:center;}
+.finale-chars{font-size:56px;animation:jmp .8s ease-in-out infinite alternate;}
+.finale-h{font-family:'Space Grotesk',sans-serif;font-size:clamp(32px,9vw,64px);font-weight:900;color:var(--red);text-shadow:3px 3px 0 rgba(255,255,255,.4);margin:10px 0 4px;}
+.finale-name{font-family:'Dancing Script',cursive;font-size:clamp(22px,6vw,40px);color:var(--red);margin-bottom:20px;}
+.finale-btn{padding:14px 40px;background:var(--red);color:white;border:none;border-radius:50px;font-family:'Quicksand',sans-serif;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 8px 24px rgba(190,18,60,.3);transition:.2s;}
+.finale-btn:hover{transform:scale(1.06);}
+</style>
+</head>
+<body>
+
+<div class="hbg" id="hbg"></div>
+<nav class="nav">
+  <div class="nd on"></div><div class="nd"></div><div class="nd"></div>
+  <div class="nd"></div><div class="nd"></div><div class="nd"></div>
+  <div class="nd"></div><div class="nd"></div>
+</nav>
+
+<!-- ═══ CH1: CINEMATIC TITLE ═══ -->
+<section id="c1">
+  <canvas id="sparkCv"></canvas>
+  <div class="cin-wrap">
+    <div class="cin-pre">a birthday gift for</div>
+    <div class="cin-name">TABBU</div>
+    <div class="cin-sub">you deserve the whole world 🌸</div>
+    <div class="cin-date">🎀 &nbsp; Happy Birthday &nbsp; 🎀</div>
+    <button class="cin-btn" onclick="beginJourney()">Open Your Journey ✨</button>
+  </div>
+</section>
+
+<!-- ══ All photo sections will be populated by JavaScript using the config below ══ -->
+<section id="c2" style="background:#f0ebe4;padding:50px 20px;"><div class="ch-lbl" style="color:#be123c;">Chapter One</div><div id="scrapbookRoot" class="scrap-book sr"></div></section>
+<section id="c3"><div class="ch-lbl" style="color:#be123c;">Chapter Two</div><div class="letter sr"><div class="letter-h">A Letter From My Heart 💌</div><div class="letter-pg">To: Tabbu · With Love</div><div class="letter-body">Hey <b>Tabbu</b> 🌸<br><br>Tum meri zindagi ka wo hissa ho jo sab kuch bright kar deta hai — bina noise ke.<br><br>I love your laugh, your care, the way you turn ordinary moments into memories.<br><br><b>You are loved. Deeply. Always.</b> 💕</div><div class="letter-sig">— With all my heart 🤍</div></div></section>
+<section id="c4"><div class="ch-lbl">Chapter Three</div><div class="pol-h">Us, in Pictures 📸</div><div class="pol-s">swipe · tap each to flip</div><div id="polaroidTrack" class="pol-track"></div><div class="pol-hint">← swipe · tap to flip →</div></section>
+<section id="c5"><div class="ch-lbl">Chapter Four</div><div class="film-h">Our Reel 🎞️</div><div class="film-s">drag to scroll through us</div><div style="width:100%;"><div class="film-holes"><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div></div><div id="filmStrip" class="film-strip"></div><div class="film-holes"><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div><div class="film-hole"></div></div></div><div class="film-footer">← drag to scroll →</div></section>
+<section id="c6"><div class="ch-lbl">Chapter Five</div><div class="cork"><div class="cork-title">things i love about you</div><div class="cork-sub">pinboard of my heart</div><div class="notes-grid"><div class="sticky sy"><span class="ne">💖</span><p>Your smile lights up even the dullest days</p></div><div class="sticky sp"><span class="ne">✨</span><p>How you care without expecting anything back</p></div><div class="sticky sg"><span class="ne">🌻</span><p>Your laugh — it's my favorite melody</p></div><div class="sticky sb"><span class="ne">📖</span><p>We can talk for hours about nothing & everything</p></div><div class="sticky so"><span class="ne">🎨</span><p>The way you make ordinary moments magical</p></div><div class="sticky sl"><span class="ne">🤍</span><p>You're simply irreplaceable, Tabbu</p></div></div></div></section>
+<section id="c7"><div class="cake-wrap"><div class="cake-title">🎂 Make a Wish 🎂</div><div class="cake-sub-lbl">tap the candle to cut</div><div class="cake-stage"><canvas id="cakeCanvas" width="400" height="400"></canvas></div><div class="cake-hint" id="cakeHint">✨ click the candle flame ✨</div><button class="cut-btn" id="cutCakeBtn">Cut the Cake 🎂</button><div class="cake-done" id="cakeDoneMsg">Happy Birthday Tabbu! 🎉💖</div></div></section>
+<section id="c8"><canvas id="confettiCanvas"></canvas><div class="finale-inner"><div class="finale-chars">🎀🎂💕</div><div class="finale-h">HAPPY BIRTHDAY</div><div class="finale-name">TABBU 💖</div><button class="finale-btn" onclick="replayMagic()">Watch Again ✨</button></div></section>
+
+<script>
+// ============================================================
+// ✅ Your Google Drive images are already placed here!
+// No need to edit anything — just save and open.
+// ============================================================
+const IMAGE_CONFIG = {
+  mainPhotoId: "12xdiD9HaQJeh7oXtgc5ksNVx-xJK3RV9",
+  gridPhoto1Id: "1oGJxRxjWR9BjyGEWRKRH4JYMDZOHGar8",
+  gridPhoto2Id: "1oDhtGKpV1zIZAwD79oVG2tYNNkTIhXy2",
+  polaroidIds: [
+    "1PWlnb-8vgmIqal6qWidRX3vA3jXfdRz6",
+    "1oW7HZG2xWUgd2yKQ5zcARFPmh_OG8koU",
+    "1oVt05NmQR16EMHyweFhSJDwfgcNImG6J",
+    "1oCIlCywyd9EBku4I0IeTq9tlcm-PVlut",
+    "1o9yWbVTf6mpYySWWKpYZut0ST7dDjbFa"
+  ],
+  filmIds: [
+    "1oAsZeuyJxYZA-WTYqMpCGlosWaDs86hc",
+    "1o6aYZar2qVowNRA3smmCvXn08QQM-tbx",
+    "1o8GZp9nVmlB1xPrNYsLFL_dsXPdc1rnf",
+    "1o9BpQXGmA59Z0S2y5kHfHJJ4lUOQnEt-",
+    "1bpS0Zib-e9N7GHZK5GFcmMLehdyLr4a_"
+  ]
+};
+
+function driveImgUrl(id) {
+  if(!id || id === "") return null;
+  return `https://drive.google.com/uc?export=view&id=${id}`;
+}
+
+function buildScrapbook() {
+  const container = document.getElementById("scrapbookRoot");
+  if(!container) return;
+  const mainUrl = driveImgUrl(IMAGE_CONFIG.mainPhotoId);
+  const grid1Url = driveImgUrl(IMAGE_CONFIG.gridPhoto1Id);
+  const grid2Url = driveImgUrl(IMAGE_CONFIG.gridPhoto2Id);
+  container.innerHTML = `<div class="scrap-dots"><div style="position:relative;"><div class="tape"></div><div class="scrap-label">Birthday<br>Book. 🎀</div><div class="scrap-sub">made just for you ✨</div><div class="scrap-photo">${mainUrl ? `<img src="${mainUrl}" alt="Tabbu">` : `<div class="ph-fb"><span>🌸</span>Add your photo</div>`}<div class="ph-fb" style="display:none"><span>🌸</span>Your Photo</div></div><div class="scrap-ann">besties forever 🤍</div><div class="scrap-ann">main character era</div><div class="scrap-ann">elevator selfie vibes 📸</div></div><div class="scrap-grid"><div class="scrap-mini">${grid1Url ? `<img src="${grid1Url}" alt="memory">` : `<div class="mini-fb">💫</div>`}</div><div class="scrap-mini">${grid2Url ? `<img src="${grid2Url}" alt="memory">` : `<div class="mini-fb">🌷</div>`}</div></div></div>`;
+}
+
+function buildPolaroids() {
+  const track = document.getElementById("polaroidTrack");
+  if(!track) return;
+  const caps = ["bestie era 🤍", "random day vibes 💜", "our vibe 🌈", "forever 💚", "happy bday 🎂"];
+  const backs = [
+    '"The one who always shows up — that\'s you." 💕',
+    '"You make boring days feel like adventures." 🌟',
+    '"Nobody gets me like you do." ☕',
+    '"Still us, no matter what. Always." 🏡',
+    '"Today is all about you. Every single bit." 🎉'
+  ];
+  const rotations = ["-4deg", "3deg", "-2deg", "4deg", "-3deg"];
+  track.innerHTML = "";
+  for(let i=0; i<5; i++) {
+    const imgUrl = driveImgUrl(IMAGE_CONFIG.polaroidIds[i]);
+    const frontContent = imgUrl ? `<img src="${imgUrl}" alt="memory">` : `<div class="pol-img-ph">🌸</div>`;
+    const pol = document.createElement("div");
+    pol.className = "pol";
+    pol.style.setProperty("--r", rotations[i]);
+    pol.setAttribute("onclick", "this.classList.toggle('flip')");
+    pol.innerHTML = `<div class="pol-inner"><div class="pol-front"><div class="pol-img">${frontContent}</div><div class="pol-cap">${caps[i]}</div></div><div class="pol-back"><p>${backs[i]}</p></div></div>`;
+    track.appendChild(pol);
+  }
+}
+
+function buildFilmStrip() {
+  const strip = document.getElementById("filmStrip");
+  if(!strip) return;
+  const captions = ["silly moments ✨", "late night talks 🌙", "our energy 🚀", "just because 💕", "happy moments 🥳"];
+  strip.innerHTML = "";
+  for(let i=0; i<5; i++) {
+    const imgUrl = driveImgUrl(IMAGE_CONFIG.filmIds[i]);
+    const imgHtml = imgUrl ? `<img src="${imgUrl}" alt="memory">` : `<div class="film-img-ph"><span>🎞️</span><p>add photo</p></div>`;
+    const frame = document.createElement("div");
+    frame.className = "film-frame";
+    frame.innerHTML = `<div class="film-img-wrap">${imgHtml}</div><div class="film-cap">${captions[i]}</div>`;
+    strip.appendChild(frame);
+  }
+}
+
+function addDragScroll() {
+  const filmStrip = document.getElementById('filmStrip');
+  if(filmStrip) {
+    let isDown = false, startX, scrollLeft;
+    filmStrip.addEventListener('mousedown', (e) => { isDown = true; startX = e.pageX - filmStrip.offsetLeft; scrollLeft = filmStrip.scrollLeft; filmStrip.style.cursor = 'grabbing'; });
+    window.addEventListener('mouseup', () => { isDown = false; if(filmStrip) filmStrip.style.cursor = 'grab'; });
+    window.addEventListener('mousemove', (e) => { if(!isDown) return; e.preventDefault(); const x = e.pageX - filmStrip.offsetLeft; const walk = (x - startX) * 1.5; filmStrip.scrollLeft = scrollLeft - walk; });
+  }
+  const polTrack = document.querySelector('.pol-track');
+  if(polTrack){
+    let pDown=false,pStart,pLeft;
+    polTrack.addEventListener('mousedown',(e)=>{ pDown=true; pStart=e.pageX-polTrack.offsetLeft; pLeft=polTrack.scrollLeft; polTrack.style.cursor='grabbing'; });
+    window.addEventListener('mouseup',()=>{ pDown=false; if(polTrack) polTrack.style.cursor='grab'; });
+    window.addEventListener('mousemove',(e)=>{ if(!pDown) return; e.preventDefault(); const walk=(e.pageX-polTrack.offsetLeft-pStart)*1.5; polTrack.scrollLeft=pLeft-walk; });
+  }
+}
+
+// Cake logic
+let cakeCut = false, cutTriggered = false;
+const cakeCanvas = document.getElementById('cakeCanvas');
+const cakeCtx = cakeCanvas.getContext('2d');
+function drawCake() {
+  cakeCtx.clearRect(0,0,400,400);
+  cakeCtx.fillStyle = '#f9a8d4';
+  cakeCtx.fillRect(100,220,200,100);
+  cakeCtx.fillStyle = '#f472b6';
+  cakeCtx.fillRect(100,210,200,15);
+  cakeCtx.fillStyle = '#fce7f3';
+  for(let i=0;i<6;i++) cakeCtx.fillRect(110+i*30,240,12,70);
+  cakeCtx.fillStyle = '#fde047';
+  cakeCtx.fillRect(185,160,30,60);
+  cakeCtx.fillStyle = '#ffa500';
+  cakeCtx.beginPath();
+  cakeCtx.moveTo(200,140);
+  cakeCtx.lineTo(192,160);
+  cakeCtx.lineTo(208,160);
+  cakeCtx.fill();
+  cakeCtx.fillStyle = '#ff7b00';
+  cakeCtx.beginPath();
+  cakeCtx.arc(200,138,8,0,Math.PI*2);
+  cakeCtx.fill();
+  if(cakeCut) {
+    cakeCtx.fillStyle = '#be123c';
+    cakeCtx.font = "bold 18px 'Quicksand'";
+    cakeCtx.fillText("🎀 HAPPY BIRTHDAY! 🎀", 110, 350);
+  }
+}
+drawCake();
+document.getElementById('cutCakeBtn').addEventListener('click', ()=>{
+  if(cutTriggered) return;
+  cutTriggered = true;
+  cakeCut = true;
+  drawCake();
+  document.getElementById('cakeHint').innerText = '🎉 Yay! Wish granted! 🎉';
+  document.getElementById('cakeDoneMsg').classList.add('show');
+  document.getElementById('cutCakeBtn').disabled = true;
+  for(let i=0;i<60;i++){ let conf = document.createElement('div'); conf.innerHTML='🎉'; conf.style.position='fixed'; conf.style.left=Math.random()*100+'%'; conf.style.top='50%'; conf.style.fontSize='18px'; conf.style.pointerEvents='none'; conf.style.zIndex=999; conf.style.opacity=0.9; conf.style.transition='all 1.5s ease-out'; document.body.appendChild(conf); setTimeout(()=>{ conf.style.transform=`translateY(${Math.random()*300-400}px) translateX(${Math.random()*200-100}px) rotate(${Math.random()*360}deg)`; conf.style.opacity='0'; setTimeout(()=>conf.remove(),1500); },10); }
+});
+
+// Confetti canvas for finale
+const confettiCanvas = document.getElementById('confettiCanvas');
+let confCtx;
+function initConfettiCanvas() {
+  if(confettiCanvas){
+    confettiCanvas.width=window.innerWidth;
+    confettiCanvas.height=window.innerHeight;
+    confCtx=confettiCanvas.getContext('2d');
+    let confParticles=[];
+    for(let i=0;i<90;i++) confParticles.push({x:Math.random()*confettiCanvas.width, y:Math.random()*confettiCanvas.height, size:4+Math.random()*8, color:`hsl(${Math.random()*360},80%,65%)`, vx:-1+Math.random()*2, vy:1+Math.random()*3});
+    function drawConfetti(){ if(!confCtx) return; confCtx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); confParticles.forEach(p=>{ confCtx.fillStyle=p.color; confCtx.fillRect(p.x,p.y,p.size/1.5,p.size); p.x+=p.vx; p.y+=p.vy; if(p.y>confettiCanvas.height) p.y=-20; if(p.x>confettiCanvas.width) p.x=0; if(p.x<0) p.x=confettiCanvas.width; }); requestAnimationFrame(drawConfetti); }
+    drawConfetti();
+  }
+}
+window.addEventListener('resize',()=>{ if(confettiCanvas){ confettiCanvas.width=window.innerWidth; confettiCanvas.height=window.innerHeight; initConfettiCanvas(); } });
+initConfettiCanvas();
+
+// Sparkles
+const sparkCanvas = document.getElementById('sparkCv');
+let ctxSpark;
+function initSparkles() {
+  if(!sparkCanvas) return;
+  sparkCanvas.width = window.innerWidth;
+  sparkCanvas.height = window.innerHeight;
+  ctxSpark = sparkCanvas.getContext('2d');
+  let particles = [];
+  for(let i=0;i<70;i++) particles.push({x:Math.random()*sparkCanvas.width, y:Math.random()*sparkCanvas.height, size:1+Math.random()*3, alpha:Math.random()*0.6, vx:-0.2+Math.random()*0.4, vy:-0.3+Math.random()*0.5});
+  function drawSpark() { if(!ctxSpark) return; ctxSpark.clearRect(0,0,sparkCanvas.width,sparkCanvas.height); particles.forEach(p=>{ ctxSpark.beginPath(); ctxSpark.fillStyle=`rgba(255,180,200,${p.alpha+0.2})`; ctxSpark.arc(p.x,p.y,p.size,0,Math.PI*2); ctxSpark.fill(); p.x+=p.vx; p.y+=p.vy; if(p.x<0||p.x>sparkCanvas.width) p.vx*=-1; if(p.y<0||p.y>sparkCanvas.height) p.vy*=-1; }); requestAnimationFrame(drawSpark); } drawSpark();
+}
+window.addEventListener('resize',()=>{ if(sparkCanvas){ sparkCanvas.width=window.innerWidth; sparkCanvas.height=window.innerHeight; initSparkles(); } });
+initSparkles();
+
+// Floating hearts
+function createFloatingHearts() {
+  const bg = document.getElementById('hbg');
+  for(let i=0;i<38;i++) {
+    let heart = document.createElement('div');
+    heart.className = 'fh';
+    heart.innerHTML = ['🌸','💖','🎀','✨','💕','🎂','💗'][Math.floor(Math.random()*7)];
+    heart.style.left = Math.random() * 100 + '%';
+    heart.style.animationDuration = 8 + Math.random() * 12 + 's';
+    heart.style.animationDelay = Math.random() * 12 + 's';
+    heart.style.fontSize = 16 + Math.random() * 28 + 'px';
+    heart.style.opacity = 0.2 + Math.random() * 0.5;
+    bg.appendChild(heart);
+  }
+}
+createFloatingHearts();
+
+// Scroll & nav
+const sections = document.querySelectorAll('section');
+const navDots = document.querySelectorAll('.nd');
+const srElements = document.querySelectorAll('.sr');
+function updateNavAndScroll() {
+  let current = 0;
+  sections.forEach((sec, idx) => {
+    const rect = sec.getBoundingClientRect();
+    if(rect.top <= window.innerHeight/2 && rect.bottom >= window.innerHeight/2) current = idx;
+  });
+  navDots.forEach((dot, i) => {
+    if(i === current) dot.classList.add('on');
+    else dot.classList.remove('on');
+  });
+  srElements.forEach(el => {
+    const rect = el.getBoundingClientRect();
+    if(rect.top < window.innerHeight - 100) el.classList.add('vis');
+  });
+}
+window.addEventListener('scroll', updateNavAndScroll);
+window.addEventListener('load', () => { updateNavAndScroll(); setTimeout(updateNavAndScroll, 200); });
+navDots.forEach((dot, idx) => dot.addEventListener('click', () => sections[idx].scrollIntoView({ behavior: 'smooth' })));
+
+function beginJourney() { document.getElementById('c2').scrollIntoView({ behavior: 'smooth' }); }
+function replayMagic() { window.scrollTo({top:0,behavior:'smooth'}); setTimeout(()=>{ location.reload(); },600); }
+
+// Build everything
+buildScrapbook();
+buildPolaroids();
+buildFilmStrip();
+addDragScroll();
+
+console.log("🎀 Happy Birthday Tabbu! All your beautiful images are now live. 🎀");
+</script>
+</body>
+</html>
