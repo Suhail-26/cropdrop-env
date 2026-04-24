@@ -1,255 +1,194 @@
----
-title: Cropdrop Env Environment Server
-emoji: 📻
-colorFrom: gray
-colorTo: blue
-sdk: docker
-pinned: false
-app_port: 7860
-base_path: /web
-tags:
-  - openenv
+# 🌾 CropOps Agent – Agricultural Last‑Mile Delivery Environment
+
+**OpenEnv Hackathon India 2026 – Theme 3: World Modeling**
+
+[![Hugging Face Space](https://img.shields.io/badge/🤗-Hugging%20Face%20Space-blue)](https://huggingface.co/spaces/suhailma/cropdrop-env)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-black)](https://github.com/Suhail-26/cropdrop-env/tree/round2-cropops)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ---
 
-# Cropdrop Env Environment
+## 📖 Overview
 
-A simple test environment that echoes back messages. Perfect for testing the env APIs as well as demonstrating environment usage patterns.
+CropOps Agent is a **reinforcement learning environment** where an AI agent learns to navigate a 10×10 grid, pick up crops from villages, and deliver them to the correct warehouses before they spoil. The environment simulates real‑world logistics challenges:
 
-## Quick Start
+- **Partial observability** – the agent sees only a 3×3 area around it
+- **Dynamic disruptions** – road blocks, rain, vehicle breakdowns
+- **Spoilage timers** – crops expire if not delivered quickly
+- **Fuel limits** – agent must refuel at depots
 
-The simplest way to use the Cropdrop Env environment is through the `CropdropEnv` class:
+This environment is built with **OpenEnv** and exposes a FastAPI server for easy integration with LLM training pipelines.
 
-```python
-from cropdrop_env import CropdropAction, CropdropEnv
+---
 
-try:
-    # Create environment from Docker image
-    cropdrop_envenv = CropdropEnv.from_docker_image("cropdrop_env-env:latest")
+## 🎯 Problem Statement
 
-    # Reset
-    result = cropdrop_envenv.reset()
-    print(f"Reset: {result.observation.echoed_message}")
+**30‑40% of global food is lost during last‑mile delivery** – not because of bad harvests, but because logistics fail. Roads flood, vehicles break down, and drivers don’t know which farm to visit first. CropOps Agent trains AI agents to solve this problem by learning to:
 
-    # Send multiple messages
-    messages = ["Hello, World!", "Testing echo", "Final message"]
+- Prioritise fast‑spoiling crops
+- Re‑route around disruptions
+- Navigate efficiently under partial information
+- Deliver to the correct zone before spoilage
 
-    for msg in messages:
-        result = cropdrop_envenv.step(CropdropAction(message=msg))
-        print(f"Sent: '{msg}'")
-        print(f"  → Echoed: '{result.observation.echoed_message}'")
-        print(f"  → Length: {result.observation.message_length}")
-        print(f"  → Reward: {result.reward}")
+---
 
-finally:
-    # Always clean up
-    cropdrop_envenv.close()
-```
+## 🏗️ Environment Details
 
-That's it! The `CropdropEnv.from_docker_image()` method handles:
-- Starting the Docker container
-- Waiting for the server to be ready
-- Connecting to the environment
-- Container cleanup when you call `close()`
+### Grid & Objects
 
-## Building the Docker Image
+| Symbol | Meaning | Count |
+|--------|---------|-------|
+| `V` | Village (crop pickup point) | 4 |
+| `W` | Warehouse (delivery zone) | 2 (zone_1, zone_2) |
+| `D` | Depot (refuel point) | 2 |
+| `X` | Blocked road (disruption) | 2 per episode |
+| `A` | Agent position | 1 |
+| `#` | Static wall | several |
 
-Before using the environment, you need to build the Docker image:
+### Action Space (6 discrete actions)
+up, down, left, right, pickup, dropoff
 
-```bash
-# From project root
-docker build -t cropdrop_env-env:latest -f server/Dockerfile .
-```
+text
 
-## Deploying to Hugging Face Spaces
+*Pickup is automatic when stepping onto a village* – the agent only needs to navigate and drop off.
 
-You can easily deploy your OpenEnv environment to Hugging Face Spaces using the `openenv push` command:
+### Observation Space (partial observability)
 
-```bash
-# From the environment directory (where openenv.yaml is located)
-openenv push
+- `agent_position` – current coordinates
+- `nearby_tiles` – 3×3 grid around agent
+- `carried_crop` – type, intended zone, spoilage remaining
+- `crops` – list of all crops (position, spoilage, intended zone)
+- `fuel`, `breakdown_steps_remaining`, `active_disruptions`
 
-# Or specify options
-openenv push --namespace my-org --private
-```
+### Reward Function
 
-The `openenv push` command will:
-1. Validate that the directory is an OpenEnv environment (checks for `openenv.yaml`)
-2. Prepare a custom build for Hugging Face Docker space (enables web interface)
-3. Upload to Hugging Face (ensuring you're logged in)
+| Event | Reward |
+|-------|--------|
+| Correct zone + on‑time delivery | +15 |
+| Correct zone + fresh | +10 |
+| Correct zone but spoiled | +5 |
+| Wrong zone | –3 |
+| Wall / blocked tile | –1 |
+| Pickup (auto) | +2 (shaped) |
+| Refuel | +5 |
 
-### Prerequisites
+---
 
-- Authenticate with Hugging Face: The command will prompt for login if not already authenticated
+## 📊 Training Results
 
-### Options
+### 1. Q‑Learning with Curriculum (3000 episodes)
 
-- `--directory`, `-d`: Directory containing the OpenEnv environment (defaults to current directory)
-- `--repo-id`, `-r`: Repository ID in format 'username/repo-name' (defaults to 'username/env-name' from openenv.yaml)
-- `--base-image`, `-b`: Base Docker image to use (overrides Dockerfile FROM)
-- `--private`: Deploy the space as private (default: public)
+We trained a Q‑table agent using **curriculum learning** (1 crop → 2 crops → 3 crops), BFS reward shaping, and experience replay.
 
-### Examples
+| Metric | Before (random) | After (trained) | Improvement |
+|--------|----------------|----------------|-------------|
+| **Avg reward** | –13.41 | **+62.76** | **+76.17** |
+| **Avg deliveries** | 0.10 / 3 | **2.27 / 3** | **+2.17** |
 
-```bash
-# Push to your personal namespace (defaults to username/env-name from openenv.yaml)
-openenv push
+![Q‑Learning reward curve](reward_curve.png)
+*The reward curve rises steadily across 3000 episodes. Red markers show curriculum phase transitions.*
 
-# Push to a specific repository
-openenv push --repo-id my-org/my-env
+### 2. Hugging Face TRL (GRPO) – SmolLM2‑135M
 
-# Push with a custom base image
-openenv push --base-image ghcr.io/meta-pytorch/openenv-base:latest
+We fine‑tuned a 135M‑parameter language model using `trl.GRPOTrainer`. The model receives a natural language prompt describing the current state and outputs a sequence of actions.
 
-# Push as a private space
-openenv push --private
+| Metric | Random baseline | After TRL/GRPO | Improvement |
+|--------|----------------|----------------|-------------|
+| **Avg reward** | –0.47 | **+8.00** | **+8.47** |
+| **Avg deliveries** | 0.00 / 3 | 0.00 / 3 | – |
 
-# Combine options
-openenv push --repo-id my-org/my-env --base-image custom-base:latest --private
-```
+![TRL reward curve](reward_curve_trl.png)
+*GRPO training steps vs. shaped reward – the model learns to avoid penalties and produce meaningful action sequences.*
 
-After deployment, your space will be available at:
-`https://huggingface.co/spaces/<repo-id>`
+---
 
-The deployed space includes:
-- **Web Interface** at `/web` - Interactive UI for exploring the environment
-- **API Documentation** at `/docs` - Full OpenAPI/Swagger interface
-- **Health Check** at `/health` - Container health monitoring
-- **WebSocket** at `/ws` - Persistent session endpoint for low-latency interactions
+## 🚀 Quick Start
 
-## Environment Details
-
-### Action
-**CropdropAction**: Contains a single field
-- `message` (str) - The message to echo back
-
-### Observation
-**CropdropObservation**: Contains the echo response and metadata
-- `echoed_message` (str) - The message echoed back
-- `message_length` (int) - Length of the message
-- `reward` (float) - Reward based on message length (length × 0.1)
-- `done` (bool) - Always False for echo environment
-- `metadata` (dict) - Additional info like step count
-
-### Reward
-The reward is calculated as: `message_length × 0.1`
-- "Hi" → reward: 0.2
-- "Hello, World!" → reward: 1.3
-- Empty message → reward: 0.0
-
-## Advanced Usage
-
-### Connecting to an Existing Server
-
-If you already have a Cropdrop Env environment server running, you can connect directly:
-
-```python
-from cropdrop_env import CropdropEnv
-
-# Connect to existing server
-cropdrop_envenv = CropdropEnv(base_url="<ENV_HTTP_URL_HERE>")
-
-# Use as normal
-result = cropdrop_envenv.reset()
-result = cropdrop_envenv.step(CropdropAction(message="Hello!"))
-```
-
-Note: When connecting to an existing server, `cropdrop_envenv.close()` will NOT stop the server.
-
-### Using the Context Manager
-
-The client supports context manager usage for automatic connection management:
-
-```python
-from cropdrop_env import CropdropAction, CropdropEnv
-
-# Connect with context manager (auto-connects and closes)
-with CropdropEnv(base_url="http://localhost:8000") as env:
-    result = env.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-    # Multiple steps with low latency
-    for msg in ["Hello", "World", "!"]:
-        result = env.step(CropdropAction(message=msg))
-        print(f"Echoed: {result.observation.echoed_message}")
-```
-
-The client uses WebSocket connections for:
-- **Lower latency**: No HTTP connection overhead per request
-- **Persistent session**: Server maintains your environment state
-- **Efficient for episodes**: Better for many sequential steps
-
-### Concurrent WebSocket Sessions
-
-The server supports multiple concurrent WebSocket connections. To enable this,
-modify `server/app.py` to use factory mode:
-
-```python
-# In server/app.py - use factory mode for concurrent sessions
-app = create_app(
-    CropdropEnvironment,  # Pass class, not instance
-    CropdropAction,
-    CropdropObservation,
-    max_concurrent_envs=4,  # Allow 4 concurrent sessions
-)
-```
-
-Then multiple clients can connect simultaneously:
-
-```python
-from cropdrop_env import CropdropAction, CropdropEnv
-from concurrent.futures import ThreadPoolExecutor
-
-def run_episode(client_id: int):
-    with CropdropEnv(base_url="http://localhost:8000") as env:
-        result = env.reset()
-        for i in range(10):
-            result = env.step(CropdropAction(message=f"Client {client_id}, step {i}"))
-        return client_id, result.observation.message_length
-
-# Run 4 episodes concurrently
-with ThreadPoolExecutor(max_workers=4) as executor:
-    results = list(executor.map(run_episode, range(4)))
-```
-
-## Development & Testing
-
-### Direct Environment Testing
-
-Test the environment logic directly without starting the HTTP server:
+### Local development
 
 ```bash
-# From the server directory
-python3 server/cropdrop_env_environment.py
-```
+# Clone the repository
+git clone -b round2-cropops https://github.com/Suhail-26/cropdrop-env.git
+cd cropdrop-env
 
-This verifies that:
-- Environment resets correctly
-- Step executes actions properly
-- State tracking works
-- Rewards are calculated correctly
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-### Running Locally
+# Install dependencies
+pip install -r requirements.txt
 
-Run the server locally for development:
+# Validate the environment
+openenv validate
 
-```bash
-uvicorn server.app:app --reload
-```
+# Run Q‑learning training
+python train_colab.py
 
-## Project Structure
+# Run TRL training (requires T4 GPU)
+python trl_colab.py
+Hugging Face Space
+The environment is live at:
+https://huggingface.co/spaces/suhailma/cropdrop-env
 
-```
-cropdrop_env/
-├── .dockerignore         # Docker build exclusions
-├── __init__.py            # Module exports
-├── README.md              # This file
-├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml         # Project metadata and dependencies
-├── uv.lock                # Locked dependencies (generated)
-├── client.py              # CropdropEnv client
-├── models.py              # Action and Observation models
-└── server/
-    ├── __init__.py        # Server module exports
-    ├── cropdrop_env_environment.py  # Core environment logic
-    ├── app.py             # FastAPI application (HTTP + WebSocket endpoints)
-    └── Dockerfile         # Container image definition
-```
+You can interact with it via HTTP:
+
+python
+import requests
+
+# Reset episode
+obs = requests.post("https://suhailma-cropdrop-env.hf.space/reset").json()
+
+# Take a step
+result = requests.post(
+    "https://suhailma-cropdrop-env.hf.space/step",
+    json={"action": "up"}
+).json()
+print("Reward:", result["reward"])
+📁 Repository Structure (Round 2 branch)
+text
+cropdrop-env/
+├── server/
+│   ├── app.py
+│   └── cropops_env_environment.py   # Main environment class
+├── models.py                        # Action & Observation definitions
+├── openenv.yaml                     # Environment manifest
+├── graders.py                       # Easy, Medium, Hard graders
+├── train_colab.py                   # Q‑learning training script
+├── trl_colab.py                     # HF TRL (GRPO) training script
+├── inference.py                     # Baseline inference (random agent)
+├── reward_curve.png                 # Q‑learning reward curve
+├── reward_curve_trl.png             # TRL reward curve
+├── BLOG.md                          # Full blog post (problem, methods, results)
+├── requirements.txt
+├── README.md                        # This file
+└── ...
+📝 Blog Post
+For a detailed write‑up with more visuals and explanations, read our blog:
+👉 CropOps Agent — Teaching an AI to Deliver Crops Before They Spoil
+
+🧪 Evaluation (Hackathon Requirements)
+Requirement	Status
+OpenEnv latest release	✅
+HF TRL / Unsloth training script	✅ trl_colab.py (GRPO)
+Mini‑blog (Hugging Face or GitHub)	✅ BLOG.md
+Hugging Face Space	✅ suhailma/cropdrop-env
+Evidence of training (reward curves)	✅ reward_curve.png, reward_curve_trl.png
+README links all deliverables	✅
+👥 Team
+Mohamed Suhail M A – environment design, grid logic, disruptions, deployment
+
+Shaheer A – agent logic, training scripts (Q‑learning & TRL)
+
+Muhammathu Ismayeel S – reward function, reward curves, blog, slides
+
+📄 License
+MIT License – free to use and modify.
+
+🔗 Links
+Hugging Face Space: https://huggingface.co/spaces/suhailma/cropdrop-env
+
+GitHub (Round 2 branch): https://github.com/Suhail-26/cropdrop-env/tree/round2-cropops
+
+Blog Post: BLOG.md
+
+Training scripts: train_colab.py (Q‑learning), trl_colab.py (TRL/GRPO)
