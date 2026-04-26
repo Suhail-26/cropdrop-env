@@ -170,7 +170,7 @@ For a detailed write‑up with more visuals and explanations, read our blog:
 Requirement	Status
 OpenEnv latest release	✅
 HF TRL / Unsloth training script	✅ trl_colab.py (GRPO)
-Mini‑blog (Hugging Face or GitHub)	✅ BLOG.md
+youtube video (Hugging Face or GitHub)	✅ link
 Hugging Face Space	✅ suhailma/cropdrop-env
 Evidence of training (reward curves)	✅ reward_curve.png, reward_curve_trl.png
 README links all deliverables	✅
@@ -189,6 +189,7 @@ Hugging Face Space: https://huggingface.co/spaces/suhailma/cropdrop-env
 
 GitHub (Round 2 branch): https://github.com/Suhail-26/cropdrop-env/tree/round2-cropops
 
-Blog Post: BLOG.md
+Youtube Link: (https://youtu.be/Vyd-JC30Q8E?si=0SVHtN5cwK_Op0Ta)
 
 Training scripts: train_colab.py (Q‑learning), trl_colab.py (TRL/GRPO)
+Google Colab link: https://colab.research.google.com/drive/15PhxhIv_gbMFPwSRZqitxxPpKvMXIxpG?usp=sharing
