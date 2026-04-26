@@ -97,7 +97,7 @@ We fine‑tuned a 135M‑parameter language model using `trl.GRPOTrainer`. The m
 | **Avg reward** | –0.47 | **+8.00** | **+8.47** |
 | **Avg deliveries** | 0.00 / 3 | 0.00 / 3 | – |
 
-![TRL reward curve](reward_curve_trl.png)
+![TRL reward curve](reward_curve_trl.jpeg)
 *GRPO training steps vs. shaped reward – the model learns to avoid penalties and produce meaningful action sequences.*
 
 ---
