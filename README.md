@@ -90,12 +90,12 @@ We trained a Q‑table agent using **curriculum learning** (1 crop → 2 crops �
 
 ### 2. Hugging Face TRL (GRPO) – SmolLM2‑135M
 
-We fine‑tuned a 135M‑parameter language model using `trl.GRPOTrainer`. The model receives a natural language prompt describing the current state and outputs a sequence of actions.
+We fine‑tuned a Qwen 2.5‑parameter language model using `trl.GRPOTrainer`. The model receives a natural language prompt describing the current state and outputs a sequence of actions.
 
-| Metric | Random baseline | After TRL/GRPO | Improvement |
+| Metric | Random baseline | After TRL/LLM | Improvement |
 |--------|----------------|----------------|-------------|
 | **Avg reward** | –0.47 | **+8.00** | **+8.47** |
-| **Avg deliveries** | 0.00 / 3 | 0.00 / 3 | – |
+| **Avg deliveries** | 0.00 / 3 | 0.70 / 3 | 0.70 |
 
 ![TRL reward curve](reward_curve_trl.jpeg)
 *GRPO training steps vs. shaped reward – the model learns to avoid penalties and produce meaningful action sequences.*
