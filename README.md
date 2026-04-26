@@ -158,7 +158,7 @@ cropdrop-env/
 ├── inference.py                     # Baseline inference (random agent)
 ├── reward_curve.png                 # Q‑learning reward curve
 ├── reward_curve_trl.png             # TRL reward curve
-├── BLOG.md                          # Full blog post (problem, methods, results)
+├── cropops_visualizer.html                        
 ├── requirements.txt
 ├── README.md                        # This file
 └── ...
