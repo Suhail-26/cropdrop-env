@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CropOps Agent — Live Simulation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0a0f0a;
+    --panel: #111811;
+    --border: #1e2e1e;
+    --green: #4ade80;
+    --green-dim: #166534;
+    --yellow: #facc15;
+    --red: #f87171;
+    --orange: #fb923c;
+    --blue: #60a5fa;
+    --purple: #c084fc;
+    --text: #e2e8e2;
+    --muted: #6b7f6b;
+    --road: #1a2a1a;
+    --village: #14532d;
+    --warehouse: #1e3a5f;
+    --blocked: #1c1c1c;
+    --agent: #4ade80;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  header {
+    padding: 20px 32px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #0a0f0a 0%, #0d1a0d 100%);
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--green);
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--yellow); }
+
+  .badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    border: 1px solid var(--green-dim);
+    color: var(--green);
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 0;
+    min-height: calc(100vh - 65px);
+  }
+
+  /* ── GRID SECTION ── */
+  .grid-section {
+    padding: 24px;
+    border-right: 1px solid var(--border);
+  }
+
+  .grid-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .grid-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .step-counter {
+    font-size: 12px;
+    color: var(--green);
+  }
+
+  #grid-container {
+    display: inline-grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 3px;
+    background: var(--border);
+    padding: 3px;
+    border-radius: 4px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .cell {
+    aspect-ratio: 1;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    position: relative;
+    transition: background 0.15s, transform 0.15s;
+    cursor: default;
+    min-width: 0;
+  }
+
+  .cell.road     { background: var(--road); }
+  .cell.village  { background: var(--village); border: 1px solid #166534; }
+  .cell.warehouse{ background: var(--warehouse); border: 1px solid #1d4ed8; }
+  .cell.blocked  { background: var(--blocked); }
+  .cell.disrupted{ background: #3b0000; border: 1px solid #7f1d1d; }
+  .cell.agent    { background: #052e16; border: 2px solid var(--green);
+                   box-shadow: 0 0 12px rgba(74,222,128,0.4); transform: scale(1.05); }
+
+  .cell-label {
+    font-size: 9px;
+    color: var(--muted);
+    position: absolute;
+    bottom: 1px;
+    right: 2px;
+    line-height: 1;
+  }
+
+  /* legend */
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 2px;
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+
+  button:hover { border-color: var(--green); color: var(--green); }
+
+  button.primary {
+    background: var(--green-dim);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  button.primary:hover { background: #166534cc; }
+
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .speed-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  input[type=range] {
+    width: 80px;
+    accent-color: var(--green);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .panel {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+  }
+
+  /* reward display */
+  .reward-big {
+    font-family: 'Syne', sans-serif;
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--green);
+    line-height: 1;
+  }
+
+  .reward-big.negative { color: var(--red); }
+
+  .reward-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* crop cards */
+  .crop-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 8px;
+    transition: border-color 0.2s;
+  }
+
+  .crop-card.active { border-color: var(--yellow); }
+  .crop-card.delivered { border-color: var(--green); opacity: 0.6; }
+  .crop-card.urgent { border-color: var(--red); }
+
+  .crop-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .crop-name {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .crop-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    border: 1px solid;
+  }
+
+  .crop-status.waiting { color: var(--muted); border-color: var(--border); }
+  .crop-status.carrying { color: var(--yellow); border-color: var(--yellow); background: #422006; }
+  .crop-status.done { color: var(--green); border-color: var(--green); background: #052e16; }
+
+  .spoilage-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+
+  .spoilage-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s, background 0.3s;
+  }
+
+  .crop-meta {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* disruption log */
+  .log-container {
+    max-height: 140px;
+    overflow-y: auto;
+    font-size: 10px;
+    line-height: 1.6;
+  }
+
+  .log-line {
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+  }
+
+  .log-step { color: var(--muted); min-width: 30px; }
+  .log-msg { color: var(--text); }
+  .log-msg.warn { color: var(--orange); }
+  .log-msg.good { color: var(--green); }
+  .log-msg.bad  { color: var(--red); }
+
+  /* stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--green);
+  }
+
+  .stat-label {
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* result banner */
+  .result-banner {
+    display: none;
+    padding: 16px;
+    background: linear-gradient(135deg, #052e16, #0a4a1a);
+    border-top: 2px solid var(--green);
+    text-align: center;
+  }
+
+  .result-banner.show { display: block; }
+  .result-banner.fail { background: linear-gradient(135deg, #1c0a0a, #3b0000); border-color: var(--red); }
+
+  .result-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+
+  .result-sub { font-size: 11px; color: var(--muted); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .pulsing { animation: pulse 1s infinite; }
+
+  @keyframes flash {
+    0% { background: #166534; }
+    100% { background: transparent; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Crop<span>Ops</span> Agent</div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <span class="badge">ROUND 2</span>
+    <span class="badge" style="border-color:#1d4ed8;color:#60a5fa">WORLD MODELING</span>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT: Grid -->
+  <div class="grid-section">
+    <div class="grid-header">
+      <div class="grid-title">10×10 Grid Simulation</div>
+      <div class="step-counter">Step <span id="step-num">0</span> / 80</div>
+    </div>
+
+    <div id="grid-container"></div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#14532d"></div> Village (crop)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1e3a5f"></div> Warehouse</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1a2a1a"></div> Road</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1c1c1c"></div> Blocked</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#3b0000"></div> Disrupted</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#052e16;border:2px solid #4ade80"></div> Agent</div>
+    </div>
+
+    <div class="controls">
+      <button class="primary" id="btn-run" onclick="startSim()">▶ Run Episode</button>
+      <button id="btn-step" onclick="stepOnce()">Step</button>
+      <button id="btn-reset" onclick="resetSim()">↺ Reset</button>
+      <div class="speed-control">
+        Speed: <input type="range" id="speed" min="1" max="10" value="5">
+        <span id="speed-label">5</span>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;font-size:11px;color:var(--muted);line-height:1.8">
+      <strong style="color:var(--text)">How it works:</strong> The agent (green) navigates to villages to 
+      pick up crops, then delivers them to the correct warehouse zone before they spoil. 
+      Random disruptions — road blocks, rain, vehicle breakdowns — occur during each episode.
+      This matches the same environment used in our Q-learning training (+76 reward, 2.27 deliveries).
+    </div>
+  </div>
+
+  <!-- RIGHT: Sidebar -->
+  <div class="sidebar">
+
+    <!-- Reward Panel -->
+    <div class="panel">
+      <div class="panel-title">Episode Reward</div>
+      <div class="reward-big" id="total-reward">0.00</div>
+      <div class="reward-sub">total accumulated reward</div>
+      <div class="stats-row" style="margin-top:12px">
+        <div class="stat-box">
+          <div class="stat-val" id="delivered-count">0</div>
+          <div class="stat-label">Delivered</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="pending-count">3</div>
+          <div class="stat-label">Pending</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Crops Panel -->
+    <div class="panel">
+      <div class="panel-title">Crop Status</div>
+      <div id="crop-cards"></div>
+    </div>
+
+    <!-- Log Panel -->
+    <div class="panel" style="flex:1">
+      <div class="panel-title">Event Log</div>
+      <div class="log-container" id="event-log"></div>
+    </div>
+
+    <!-- Result Banner -->
+    <div class="result-banner" id="result-banner">
+      <div class="result-title" id="result-title">Episode Complete!</div>
+      <div class="result-sub" id="result-sub"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── ENVIRONMENT CONSTANTS ──────────────────────────────────────────────────
+const GRID = 10;
+const VILLAGES = {1:[1,1], 2:[1,8], 3:[8,1], 4:[8,8]};
+const WAREHOUSES = {zone_1:[4,2], zone_2:[4,7]};
+const STATIC_BLOCKED = [[3,4],[3,5],[3,6],[6,4],[6,5],[6,6]];
+const AGENT_START = [5,5];
+const MAX_STEPS = 80;
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let state = {};
+let running = false;
+let timer = null;
+let stepHistory = [];
+
+function initState() {
+  const cropTypes = shuffle(['tomato','wheat','corn']);
+  const zones = shuffle(['zone_1','zone_2','zone_1']);
+  const crops = cropTypes.map((type,i) => ({
+    id: i+1,
+    type,
+    villageId: i+1,
+    position: [...VILLAGES[i+1]],
+    spoilage: type==='tomato' ? rnd(30,45) : rnd(35,50),
+    maxSpoilage: type==='tomato' ? 45 : 50,
+    intendedZone: zones[i],
+    pickedUp: false,
+    delivered: false
+  }));
+
+  const scheduleSize = 2;
+  const disruptionSteps = sampleWithout(
+    Array.from({length:60},(_,i)=>i+10), scheduleSize);
+
+  state = {
+    agentPos: [...AGENT_START],
+    crops,
+    carried: null,
+    step: 0,
+    totalReward: 0,
+    done: false,
+    activeBlocked: [],
+    disruptions: disruptionSteps.map(s => ({
+      step: s,
+      type: rndChoice(['road_block','rain','breakdown']),
+      triggered: false,
+      expiresAt: s+5,
+      blockedTile: null
+    })),
+    log: [],
+    breakdownSteps: 0
+  };
+}
+
+// ── BFS PATHFINDING ────────────────────────────────────────────────────────
+function bfsPath(start, goal) {
+  const blocked = new Set(STATIC_BLOCKED.map(t=>t[0]+','+t[1]));
+  state.activeBlocked.forEach(t => blocked.add(t[0]+','+t[1]));
+
+  const key = p => p[0]+','+p[1];
+  const queue = [[start, []]];
+  const visited = new Set([key(start)]);
+  const moves = {up:[-1,0],down:[1,0],left:[0,-1],right:[0,1]};
+
+  while (queue.length) {
+    const [pos, path] = queue.shift();
+    if (pos[0]===goal[0] && pos[1]===goal[1]) return path;
+    for (const [dir,[dr,dc]] of Object.entries(moves)) {
+      const np = [pos[0]+dr, pos[1]+dc];
+      const nk = key(np);
+      if (np[0]<0||np[0]>=GRID||np[1]<0||np[1]>=GRID) continue;
+      if (blocked.has(nk) || visited.has(nk)) continue;
+      visited.add(nk);
+      queue.push([np, [...path, dir]]);
+    }
+  }
+  return [];
+}
+
+// ── AGENT POLICY (BFS-guided) ──────────────────────────────────────────────
+function agentAction() {
+  if (state.breakdownSteps > 0) {
+    state.breakdownSteps--;
+    return {type:'breakdown', reward:-0.5};
+  }
+
+  const pos = state.agentPos;
+
+  // If carrying — go to warehouse
+  if (state.carried) {
+    const target = WAREHOUSES[state.carried.intendedZone];
+    if (pos[0]===target[0] && pos[1]===target[1]) {
+      return doDropoff();
+    }
+    return doMove(target);
+  }
+
+  // Find most urgent undelivered crop
+  const pending = state.crops.filter(c=>!c.pickedUp&&!c.delivered);
+  if (!pending.length) return {type:'wait', reward:0};
+
+  pending.sort((a,b)=>a.spoilage-b.spoilage);
+  const target = pending[0];
+
+  if (pos[0]===target.position[0] && pos[1]===target.position[1]) {
+    return doPickup(target);
+  }
+  return doMove(target.position);
+}
+
+function doMove(target) {
+  const path = bfsPath(state.agentPos, target);
+  if (!path.length) return {type:'stuck', reward:-0.5};
+  const dir = path[0];
+  const mv = {up:[-1,0],down:[1,0],left:[0,-1],right:[0,1]}[dir];
+  const np = [state.agentPos[0]+mv[0], state.agentPos[1]+mv[1]];
+  state.agentPos = np;
+  return {type:'move', dir, reward:-0.05};
+}
+
+function doPickup(crop) {
+  if (crop.spoilage <= 0) return {type:'spoiled', reward:-2};
+  crop.pickedUp = true;
+  state.carried = crop;
+  return {type:'pickup', crop, reward:8};
+}
+
+function doDropoff() {
+  const crop = state.carried;
+  const pos = state.agentPos;
+  const zone = Object.entries(WAREHOUSES).find(([,p])=>p[0]===pos[0]&&p[1]===pos[1]);
+  if (!zone) return doMove(WAREHOUSES[crop.intendedZone]);
+
+  const zoneName = zone[0];
+  crop.delivered = true;
+  crop.deliveredZone = zoneName;
+  state.carried = null;
+
+  const correct = zoneName === crop.intendedZone;
+  const fresh = crop.spoilage > 10;
+  let reward, msg;
+
+  if (correct && fresh) { reward=30; msg=`✓ PERFECT: ${crop.type} → ${zoneName} (+30)`; }
+  else if (correct) { reward=15; msg=`✓ GOOD: ${crop.type} → ${zoneName} (+15)`; }
+  else { reward=-8; msg=`✗ WRONG ZONE: ${crop.type} → ${zoneName} (-8)`; }
+
+  addLog(state.step, msg, correct?'good':'bad');
+  return {type:'dropoff', reward, correct, zoneName};
+}
+
+// ── DISRUPTIONS ────────────────────────────────────────────────────────────
+function tickDisruptions() {
+  state.disruptions.forEach(d => {
+    if (!d.triggered && d.step === state.step) {
+      d.triggered = true;
+      applyDisruption(d);
+    }
+  });
+  // Clear expired road blocks
+  state.activeBlocked = state.activeBlocked.filter((tile,i) => {
+    const d = state.disruptions.find(d=>d.blockedTile&&d.blockedTile[0]===tile[0]&&d.blockedTile[1]===tile[1]);
+    return !d || state.step < d.expiresAt;
+  });
+}
+
+function applyDisruption(d) {
+  if (d.type==='road_block') {
+    const r = state.agentPos[0], c = state.agentPos[1];
+    const candidates = [];
+    for (let dr=-3;dr<=3;dr++) for(let dc=-3;dc<=3;dc++) {
+      const nr=r+dr,nc=c+dc;
+      if (nr>=0&&nr<GRID&&nc>=0&&nc<GRID) {
+        const isBlocked = STATIC_BLOCKED.some(b=>b[0]===nr&&b[1]===nc);
+        const isAgent = nr===r&&nc===c;
+        const isVW = Object.values(VILLAGES).concat(Object.values(WAREHOUSES))
+          .some(p=>p[0]===nr&&p[1]===nc);
+        if (!isBlocked&&!isAgent&&!isVW) candidates.push([nr,nc]);
+      }
+    }
+    if (candidates.length) {
+      const tile = rndChoice(candidates);
+      d.blockedTile = tile;
+      state.activeBlocked.push(tile);
+      addLog(state.step, `⚠ Road blocked at [${tile}] for 5 steps`, 'warn');
+    }
+  } else if (d.type==='rain') {
+    state.crops.forEach(c=>{if(!c.delivered) c.spoilage=Math.max(0,c.spoilage-3);});
+    addLog(state.step, '⛈ Rain! Crops aged -3 extra steps', 'warn');
+  } else if (d.type==='breakdown') {
+    state.breakdownSteps=3;
+    addLog(state.step, '🔧 Breakdown! Agent stuck 3 steps', 'warn');
+  }
+}
+
+// ── STEP FUNCTION ──────────────────────────────────────────────────────────
+function doStep() {
+  if (state.done) return;
+
+  state.step++;
+  tickDisruptions();
+
+  // Tick spoilage
+  state.crops.forEach(c=>{if(!c.delivered) c.spoilage=Math.max(0,c.spoilage-1);});
+
+  const action = agentAction();
+  state.totalReward += action.reward;
+
+  if (action.type==='pickup') {
+    addLog(state.step, `↑ Picked up ${action.crop.type} (id=${action.crop.id})`, 'good');
+  }
+
+  if (state.step >= MAX_STEPS || state.crops.every(c=>c.delivered)) {
+    state.done = true;
+  }
+
+  renderAll();
+  if (state.done) showResult();
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderGrid();
+  renderCrops();
+  renderStats();
+}
+
+function renderGrid() {
+  const container = document.getElementById('grid-container');
+  const cells = container.querySelectorAll('.cell');
+
+  // Determine cell types
+  for (let r=0;r<GRID;r++) for (let c=0;c<GRID;c++) {
+    const cell = cells[r*GRID+c];
+    cell.textContent = '';
+    cell.className = 'cell road';
+    cell.title = `(${r},${c})`;
+
+    // Static blocked
+    if (STATIC_BLOCKED.some(b=>b[0]===r&&b[1]===c)) {
+      cell.className='cell blocked';
+      cell.textContent='▪';
+      continue;
+    }
+
+    // Disrupted road
+    if (state.activeBlocked.some(b=>b[0]===r&&b[1]===c)) {
+      cell.className='cell disrupted';
+      cell.textContent='✕';
+      continue;
+    }
+
+    // Warehouses
+    const wEntry = Object.entries(WAREHOUSES).find(([,p])=>p[0]===r&&p[1]===c);
+    if (wEntry) {
+      cell.className='cell warehouse';
+      cell.textContent='W';
+      cell.title=`Warehouse: ${wEntry[0]}`;
+      const label = document.createElement('span');
+      label.className='cell-label';
+      label.textContent=wEntry[0]==='zone_1'?'Z1':'Z2';
+      cell.appendChild(label);
+    }
+
+    // Villages
+    const vEntry = Object.entries(VILLAGES).find(([,p])=>p[0]===r&&p[1]===c);
+    if (vEntry) {
+      const vid = parseInt(vEntry[0]);
+      const crop = state.crops.find(c=>c.villageId===vid);
+      if (crop && !crop.pickedUp && !crop.delivered) {
+        cell.className='cell village';
+        cell.textContent='🌾';
+        cell.title=`Village ${vid}: ${crop.type}`;
+      } else {
+        cell.className='cell village';
+        cell.textContent='▫';
+        cell.style.opacity='0.4';
+      }
+    }
+
+    // Agent
+    if (state.agentPos[0]===r && state.agentPos[1]===c) {
+      cell.className='cell agent';
+      cell.textContent = state.carried ? '🚜' : '🤖';
+      cell.title=`Agent at (${r},${c})${state.carried?` carrying ${state.carried.type}`:''}`;
+    }
+  }
+
+  document.getElementById('step-num').textContent = state.step;
+}
+
+function renderCrops() {
+  const container = document.getElementById('crop-cards');
+  container.innerHTML = '';
+  state.crops.forEach(crop => {
+    const isCarried = state.carried && state.carried.id===crop.id;
+    const pct = Math.max(0, (crop.spoilage / crop.maxSpoilage)*100);
+    const color = pct>60?'#4ade80':pct>30?'#facc15':'#f87171';
+
+    let statusClass='waiting', statusText='Waiting';
+    if (crop.delivered) { statusClass='done'; statusText='Delivered'; }
+    else if (isCarried)  { statusClass='carrying'; statusText='In Transit'; }
+
+    let cardClass='crop-card';
+    if (crop.delivered) cardClass+=' delivered';
+    else if (isCarried) cardClass+=' active';
+    else if (crop.spoilage<15) cardClass+=' urgent';
+
+    const emoji = {tomato:'🍅',wheat:'🌾',corn:'🌽'}[crop.type]||'📦';
+
+    container.innerHTML += `
+      <div class="${cardClass}">
+        <div class="crop-top">
+          <span class="crop-name">${emoji} ${crop.type}</span>
+          <span class="crop-status ${statusClass}">${statusText}</span>
+        </div>
+        <div class="spoilage-bar">
+          <div class="spoilage-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="crop-meta">
+          <span>Village ${crop.villageId} → ${crop.intendedZone}</span>
+          <span style="color:${color}">⏱ ${crop.spoilage}</span>
+        </div>
+      </div>`;
+  });
+}
+
+function renderStats() {
+  const delivered = state.crops.filter(c=>c.delivered).length;
+  const pending = state.crops.filter(c=>!c.delivered).length;
+  const r = state.totalReward;
+  const el = document.getElementById('total-reward');
+  el.textContent = (r>=0?'+':'')+r.toFixed(2);
+  el.className = 'reward-big' + (r<0?' negative':'');
+  document.getElementById('delivered-count').textContent=delivered;
+  document.getElementById('pending-count').textContent=pending;
+}
+
+function addLog(step, msg, type='') {
+  const container = document.getElementById('event-log');
+  const line = document.createElement('div');
+  line.className='log-line';
+  line.innerHTML=`<span class="log-step">${step}</span><span class="log-msg ${type}">${msg}</span>`;
+  container.prepend(line);
+}
+
+function showResult() {
+  const delivered = state.crops.filter(c=>c.delivered).length;
+  const banner = document.getElementById('result-banner');
+  const title = document.getElementById('result-title');
+  const sub = document.getElementById('result-sub');
+
+  banner.className='result-banner show'+(delivered<2?' fail':'');
+  title.textContent = delivered===3?'Perfect Episode! 🏆':
+                      delivered>=2?'Good Episode ✓':
+                      delivered===1?'Partial Delivery':'No Deliveries';
+  sub.textContent=`${delivered}/3 crops delivered · Total reward: ${state.totalReward>=0?'+':''}${state.totalReward.toFixed(2)} · Steps: ${state.step}`;
+
+  document.getElementById('btn-run').disabled=false;
+  document.getElementById('btn-run').textContent='▶ New Episode';
+  running=false;
+  if(timer) clearInterval(timer);
+}
+
+// ── CONTROLS ───────────────────────────────────────────────────────────────
+function startSim() {
+  if (running) return;
+  resetSim();
+  running = true;
+  document.getElementById('btn-run').disabled=true;
+  document.getElementById('result-banner').className='result-banner';
+  const speedSlider = document.getElementById('speed');
+  function runStep() {
+    if (state.done || !running) { clearInterval(timer); running=false; return; }
+    doStep();
+    const delay = 1100 - parseInt(speedSlider.value)*100;
+    clearInterval(timer);
+    timer = setTimeout(runStep, delay);
+  }
+  runStep();
+}
+
+function stepOnce() {
+  if (!running && !state.done) {
+    document.getElementById('result-banner').className='result-banner';
+    doStep();
+  }
+}
+
+function resetSim() {
+  if(timer) clearInterval(timer);
+  running=false;
+  initState();
+  renderAll();
+  document.getElementById('event-log').innerHTML='';
+  document.getElementById('result-banner').className='result-banner';
+  document.getElementById('btn-run').disabled=false;
+  document.getElementById('btn-run').textContent='▶ Run Episode';
+  addLog(0,'Episode started. Agent ready.','');
+}
+
+document.getElementById('speed').addEventListener('input', function() {
+  document.getElementById('speed-label').textContent=this.value;
+});
+
+// ── BUILD GRID ─────────────────────────────────────────────────────────────
+function buildGrid() {
+  const container = document.getElementById('grid-container');
+  container.innerHTML='';
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+    const cell=document.createElement('div');
+    cell.className='cell road';
+    cell.dataset.r=r; cell.dataset.c=c;
+    container.appendChild(cell);
+  }
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function shuffle(a) { return [...a].sort(()=>Math.random()-0.5); }
+function rnd(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
+function rndChoice(a) { return a[Math.floor(Math.random()*a.length)]; }
+function sampleWithout(arr, n) {
+  const a=[...arr]; const res=[];
+  for(let i=0;i<n;i++) {
+    const idx=Math.floor(Math.random()*a.length);
+    res.push(a.splice(idx,1)[0]);
+  }
+  return res.sort((a,b)=>a-b);
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+buildGrid();
+resetSim();
+</script>
+</body>
+</html>
